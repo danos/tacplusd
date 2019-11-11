@@ -1,0 +1,25 @@
+Source: tacplusd
+Section: contrib/net
+Priority: extra
+Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
+Build-Depends: debhelper (>= 9), autoconf, automake, autotools-dev,
+         libsystemd-dev, libtac-dev (>= 1.3.9-0vyatta11), libglib2.0-dev,
+         pkg-config, cpio, dh-systemd, dh-autoreconf, cpputest, libcpputest-dev
+Standards-Version: 3.9.8
+
+Package: tacplusd
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, lsb-base (>= 3.0-6)
+Provides: vyatta-tacplus-daemon
+Replaces: vyatta-tacplus-daemon
+Conflicts: vyatta-tacplus-daemon
+Description: TACACS+ daemon used to forward and relay TACACS+
+ requests and responses to dbus clients.
+
+Package: tacplusd-dbg
+Architecture: any
+Priority: extra
+Section: contrib/debug
+Depends: ${misc:Depends}, tacplusd (= ${binary:Version})
+Description: tacplusd debugging symbols
+ The debugging symbols for tacplusd package.

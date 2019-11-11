@@ -1,0 +1,13 @@
+autom4te.cache/
+COPYING
+INSTALL
+Makefile
+Makefile.in
+aclocal.m4
+compile
+config.log
+config.status
+configure
+depcomp
+install-sh
+missing

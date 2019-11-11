@@ -1,0 +1,12 @@
+autoreconf.after
+autoreconf.before
+files
+*.debhelper.log
+*.substvars
+*.debhelper.log
+*.substvars
+*.postinst.debhelper
+*.postrm.debhelper
+tacplusd-dbg/
+tacplusd/
+tmp/
