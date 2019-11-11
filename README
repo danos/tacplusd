@@ -1,0 +1,9 @@
+# tacplusd
+
+TACACS+ client daemon with a D-Bus interface based on libtac from pam_tacplus.
+
+Currently supported TACACS+ functionality:
+
+ * Accounting (Round-Robin and Broadcast)
+ * Authorization
+ * Authentication

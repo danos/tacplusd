@@ -1,0 +1,31 @@
+{
+   pthread_create_signal_thread
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:main
+}
+{
+   pthread_create_signal_service_setup_threads
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:dbus_service_setup
+   fun:main
+}
+{
+   libdbus_noise_on_socketcall.sendmsg(msg.msg_iov[i])_unitalized
+   Memcheck:Param
+   socketcall.sendmsg(msg.msg_iov[i])
+   obj:/lib/x86_64-linux-gnu/libpthread-2.13.so
+   fun:_dbus_write_socket_with_unix_fds_two
+   fun:do_writing
+   fun:socket_do_iteration
+   fun:_dbus_transport_do_iteration
+   fun:_dbus_connection_do_iteration_unlocked
+   fun:_dbus_connection_read_write_dispatch
+   fun:dbus_service_listen
+   fun:start_thread
+}
