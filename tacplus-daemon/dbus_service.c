@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -24,6 +24,7 @@
 #define BUS_TYPE_ARRAY  "a"    /* SD_BUS_TYPE_ARRAY */
 #define BUS_TYPE_INT32  "i"    /* SD_BUS_TYPE_INT32 */
 #define BUS_TYPE_STRING "s"    /* SD_BUS_TYPE_STRING */
+#define BUS_TYPE_BOOL   "b"    /* SD_BUS_TYPE_BOOLEAN */
 
 #define BUS_TYPE_DICT_ELEM(K,V)                  \
 	"{"      /* SD_BUS_TYPE_DICT_ENTRY_BEGIN */  \
@@ -54,6 +55,9 @@
 
 #define CMD_AUTHOR_SEND_ARGS AUTHOR_SEND_ARGS BUS_TYPE_ARRAY BUS_TYPE_STRING
 #define CMD_AUTHOR_SEND_RET  AUTHOR_SEND_RET
+
+#define CAN_CONNECT_ARGS ""
+#define CAN_CONNECT_RET BUS_TYPE_BOOL
 
 struct tacplus_dbus_service {
 	sd_bus *bus;
@@ -99,6 +103,7 @@ static void transaction_queue_free_element(void *e)
 			free(t->request.author.cmd);
 			break;
 		case TRANSACTION_AUTHEN:
+		case TRANSACTION_CONN_CHECK:
 		default:
 			break;
 	}
@@ -179,6 +184,13 @@ fill_bus_msg_from_author_transaction(const struct author_send_response *r,
 	return sd_bus_message_close_container(m);
 }
 
+static int
+fill_bus_msg_from_conn_check_transaction(const struct conn_check_response *r,
+										 sd_bus_message *m)
+{
+	return sd_bus_message_append(m, BUS_TYPE_BOOL, r->can_connect);
+}
+
 static sd_bus_message *
 fill_bus_msg_for_transaction(struct transaction *t)
 {
@@ -205,6 +217,10 @@ fill_bus_msg_for_transaction(struct transaction *t)
 			break;
 		case TRANSACTION_AUTHOR:
 			ret = fill_bus_msg_from_author_transaction(&t->response.author, reply);
+			break;
+		case TRANSACTION_CONN_CHECK:
+			ret = fill_bus_msg_from_conn_check_transaction(
+					&t->response.conn_check, reply);
 			break;
 		default:
 			ret = -1;
@@ -320,6 +336,9 @@ static void *consume_dbus_req_thread(void *arg __unused)
 				break;
 			case TRANSACTION_AUTHOR:
 				tacplus_author_send(t);
+				break;
+			case TRANSACTION_CONN_CHECK:
+				tacplus_connection_check(t);
 				break;
 			default:
 				syslog(LOG_ERR, "Unknown transaction type %d - ignoring", t->type);
@@ -687,6 +706,21 @@ int signal_offline_state_change() {
 	return ret;
 }
 
+static int can_connect(sd_bus_message *m,
+					   __unused void *userdata,
+					   __unused sd_bus_error *error)
+{
+	struct transaction *t;
+
+	syslog(LOG_DEBUG, "can_connect() call");
+
+	t = transaction_new(TRANSACTION_CONN_CHECK);
+	if (!t)
+		return -ENOMEM;
+
+	return queue_transaction_for_bus_message(t, m);
+}
+
 static int offline_property_get(__unused sd_bus *bus,
 								__unused const char *path,
 								__unused const char *interface,
@@ -695,7 +729,7 @@ static int offline_property_get(__unused sd_bus *bus,
 								__unused void *userdata,
 								__unused sd_bus_error *error)
 {
-	return sd_bus_message_append(reply, "b", connControl->state.offline);
+	return sd_bus_message_append(reply, BUS_TYPE_BOOL, connControl->state.offline);
 }
 
 static const sd_bus_vtable serv_vtable[] = {
@@ -712,7 +746,9 @@ static const sd_bus_vtable serv_vtable[] = {
 				  author_send, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("cmd_author_send", CMD_AUTHOR_SEND_ARGS, CMD_AUTHOR_SEND_RET,
 				  cmd_author_send, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_PROPERTY("offline", "b", offline_property_get, 0,
+	SD_BUS_METHOD("can_connect", CAN_CONNECT_ARGS, CAN_CONNECT_RET,
+				  can_connect, SD_BUS_VTABLE_UNPRIVILEGED),
+	SD_BUS_PROPERTY("offline", BUS_TYPE_BOOL, offline_property_get, 0,
 					SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
 	SD_BUS_VTABLE_END
 };

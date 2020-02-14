@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -53,10 +53,15 @@ struct author_send_response {
 	struct transaction_attrib *attrs;
 };
 
+struct conn_check_response {
+	bool can_connect;
+};
+
 typedef enum {
 	TRANSACTION_AUTHEN = 1,
 	TRANSACTION_AUTHOR,
 	TRANSACTION_ACCOUNT,
+	TRANSACTION_CONN_CHECK,
 	TRANSACTION_INVALID,
 } transaction_type_t;
 
@@ -75,6 +80,7 @@ struct transaction {
 		struct authen_send_response authen;
 		struct author_send_response author;
 		struct account_send_response account;
+		struct conn_check_response conn_check;
 	} response;
 
 	void *user;
@@ -97,5 +103,7 @@ int tacplus_author_send(struct transaction *);
 int tacplus_acct_send(struct transaction *);
 
 int tacplus_authen_send(struct transaction *);
+
+void tacplus_connection_check(struct transaction *t);
 
 #endif /*_TRANSACTION_H */

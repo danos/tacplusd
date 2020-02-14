@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -30,6 +30,8 @@ const char *transaction_type_str(transaction_type_t type)
 			return "authentication";
 		case TRANSACTION_AUTHOR:
 			return "authorization";
+		case TRANSACTION_CONN_CHECK:
+			return "connection check";
 		case TRANSACTION_INVALID:
 			return "invalid";
 		default:
@@ -61,6 +63,7 @@ void transaction_free(struct transaction **t)
 				break;
 			case TRANSACTION_AUTHEN:
 			case TRANSACTION_ACCOUNT:
+			case TRANSACTION_CONN_CHECK:
 			case TRANSACTION_INVALID:
 				break;
 		}
@@ -516,4 +519,12 @@ int tacplus_authen_send(struct transaction *t)
 finish:
 	tacplus_close();
 	return t->response.authen.status;
+}
+
+void tacplus_connection_check(struct transaction *t)
+{
+	assert(t->type == TRANSACTION_CONN_CHECK);
+
+	if ((t->response.conn_check.can_connect = tacplus_connect()))
+		tacplus_close();
 }
