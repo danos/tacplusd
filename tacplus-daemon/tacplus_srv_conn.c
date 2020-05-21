@@ -346,7 +346,7 @@ unsigned tacplus_connect_all(void)
 }
 #endif
 
-static bool
+bool
 go_offline_until_next_hold_down_expiry(struct tacplus_options *opts)
 {
 	struct itimerspec it = {};
@@ -357,7 +357,10 @@ go_offline_until_next_hold_down_expiry(struct tacplus_options *opts)
 		return false;
 	}
 
-	tacplus_server_remaining_hold_down(tacplus_server(opts, opts->next_server), ts);
+	if (!tacplus_server_remaining_hold_down(
+			tacplus_server(opts, opts->next_server), ts))
+		return false;
+
 	syslog(LOG_DEBUG, "Setting offline timer for %lis %lins", ts->tv_sec, ts->tv_nsec);
 
 	return tacplusd_go_offline(ts);

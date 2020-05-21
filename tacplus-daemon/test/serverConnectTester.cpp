@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -11,6 +11,8 @@ extern "C" {
     #include "global.h"
     #include "parser.h"
     #include "statistics.h"
+
+    bool go_offline_until_next_hold_down_expiry(struct tacplus_options *opts);
 }
 #include "ut_utils.h"
 
@@ -884,6 +886,34 @@ TEST(ServerConnection, remainingHoldDownSecs)
     remaining = tacplus_server_remaining_hold_down_secs(
                     (const struct tacplus_options_server *) &serv);
     LONGS_EQUAL(0, remaining);
+}
+
+TEST(ServerConnection, testGoOfflineNotAllHeldDown)
+{
+    SET_OPTS_SERVER(opts, 0, "127.0.0.1", "100");
+    SET_OPTS_SERVER(opts, 1, "127.0.0.2", "100");
+    opts->server[0].hold_down = 10;
+    opts->server[1].hold_down = 15;
+
+    tacplus_server_activate_hold_down(
+        (struct tacplus_options_server *)&opts->server[0]);
+    tacplus_server_activate_hold_down(
+        (struct tacplus_options_server *)&opts->server[1]);
+
+    CHECK_TRUE(tacplus_server_is_held_down(
+                    (const struct tacplus_options_server *)&opts->server[0]));
+    CHECK_TRUE(tacplus_server_is_held_down(
+                    (const struct tacplus_options_server *)&opts->server[1]));
+    LONGS_EQUAL(0, opts->next_server);
+
+    /*
+     * Shouldn't go offline after expiring hold down on the 1st server.
+     * The server was held down at t0 with a 10 second expiry, therefore
+     * set time to t11 to expire the timer.
+     */
+    ut_inc_cur_mono_time(11, 0);
+    CHECK_FALSE(go_offline_until_next_hold_down_expiry(opts));
+    CHECK_TRUE(tacplusd_online());
 }
 
 TEST(ServerConnection, copyServerState)

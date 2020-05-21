@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -172,6 +172,8 @@ bool
 __wrap_tacplusd_go_offline(const struct timespec *ts) {
 	struct timespec ts_copy = *ts;
 	timespec_normalise(&ts_copy);
+
+	assert(!TIMESPEC_VALS_EQ(ts_copy, 0, 0));
 
 	_offline_until = _cur_time;
 	timespec_normalise(&_offline_until);

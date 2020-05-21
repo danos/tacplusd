@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2019, AT&T Intellectual Property
+	Copyright (c) 2019-2020, AT&T Intellectual Property
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -66,6 +66,9 @@ bool tacplusd_go_online() {
 
 bool tacplusd_go_offline(const struct timespec *time) {
 	struct itimerspec it = { .it_value = *time };
+
+	if (TIMESPEC_VALS_EQ(*time, 0, 0))
+		return false;
 
 	pthread_mutex_lock(&connControl->state.lock);
 
