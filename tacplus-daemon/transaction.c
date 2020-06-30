@@ -247,7 +247,7 @@ int tacplus_author_send(struct transaction *t)
 
 	t->response.author.status = tac_author_read_timeout(extra->server->fd, &author_rep, extra->server->timeout);
 
-	if (author_rep.status < 0) {
+	if (t->response.author.status < 0) {
 		syslog(LOG_NOTICE, "Failed to read authorization response for user: %s <%d>\n",
 							t->request.author.login, author_rep.status);
 		tacplus_server_activate_hold_down(extra->server);
@@ -423,8 +423,12 @@ finish:
 
 int tacplus_authen_send(struct transaction *t)
 {
+	int ret;
 	char *addr_str;
 	struct tac_session_extra *extra;
+#ifdef HAVE_LIBTAC_MIN_160
+	struct areply authen_reply = {0};
+#endif
 
 	assert(t->type == TRANSACTION_AUTHEN);
 	t->response.authen.status = TAC_PLUS_AUTHEN_STATUS_ERROR;
@@ -445,10 +449,14 @@ int tacplus_authen_send(struct transaction *t)
 
 	free(addr_str);
 
-	if (tac_authen_send(extra->server->fd, t->request.authen.user,
-						t->request.authen.password, t->request.authen.tty,
-						t->request.authen.r_addr) < 0)
-	{
+	ret = tac_authen_send(extra->server->fd, t->request.authen.user,
+						  t->request.authen.password, t->request.authen.tty,
+						  t->request.authen.r_addr
+#ifdef HAVE_LIBTAC_MIN_160
+						  , TAC_PLUS_AUTHEN_LOGIN
+#endif
+						  );
+	if (ret < 0) {
 		syslog(LOG_ERR, "Error sending authentication request");
 		t->response.authen.status = TAC_PLUS_AUTHEN_STATUS_ERROR;
 		tacplus_server_activate_hold_down(extra->server);
@@ -461,7 +469,11 @@ int tacplus_authen_send(struct transaction *t)
 	bool auth_in_prog = true;
 
 	while (auth_in_prog) {
-		t->response.authen.status = tac_authen_read_timeout(extra->server->fd, extra->server->timeout);
+		t->response.authen.status = tac_authen_read_timeout(extra->server->fd,
+#ifdef HAVE_LIBTAC_MIN_160
+															&authen_reply,
+#endif
+															extra->server->timeout);
 		if (t->response.authen.status < 0) {
 			syslog(LOG_ERR, "Error reading authentication reply: %d",
 							t->response.authen.status);

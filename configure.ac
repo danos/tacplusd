@@ -15,7 +15,10 @@ AM_PROG_AS
 AM_PROG_CC_C_O
 
 PKG_CHECK_MODULES([SYSTEMD],[libsystemd])
-PKG_CHECK_MODULES([LIBTAC],[libtac])
+PKG_CHECK_MODULES([LIBTAC],[libtac >= 1.6.0],
+    [AC_DEFINE([HAVE_LIBTAC_MIN_160], [1], [libtac >= 1.6.0])],
+    [PKG_CHECK_MODULES([LIBTAC],[libtac = 1.3.9])]
+)
 PKG_CHECK_MODULES([LIBTAC_EVENT],[libtac-event],
     [AC_DEFINE([HAVE_LIBTAC_EVENT], [1], [libtac-event present])],
     true
