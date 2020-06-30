@@ -1,12 +1,14 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
 
+#include <arpa/inet.h>
+#include <assert.h>
 #include <syslog.h>
 #include <stdlib.h>
 #include <math.h>
@@ -272,6 +274,11 @@ char *
 get_tty_login_addr(const char *tty)
 {
 	struct utmpx tty_utmp = {0};
+	char buf[INET6_ADDRSTRLEN] = {0};
+	char *zone_index;
+
+	static_assert(sizeof(buf) >= sizeof(struct in6_addr),
+				  "buf is used for both inet_pton() and inet_ntop()");
 
 	if (!tty) {
 		return NULL;
@@ -282,10 +289,36 @@ get_tty_login_addr(const char *tty)
 	setutxent();
 	struct utmpx *up = getutxline(&tty_utmp);
 	endutxent();
-	if (!up || strlen(up->ut_host) == 0)
+	if (!up) {
+		syslog(LOG_DEBUG, "getutxline() failed: %s (%d)", strerror(errno), errno);
 		return NULL;
+	}
 
-	return strdup(up->ut_host);
+	/*
+	 * Check for a zone index and terminate prior to the separator, since inet_pton()
+	 * won't handle it and would fail.
+	 */
+	if (up->ut_host && (zone_index = strrchr(up->ut_host, '%')))
+		*zone_index = '\0';
+
+	if (!up->ut_host || (inet_pton(AF_INET, up->ut_host, buf) != 1 &&
+						 inet_pton(AF_INET6, up->ut_host, buf) != 1)) {
+		/* ut_host is a hostname or not set - fallback to ut_addr_v6 */
+		int af = (up->ut_addr_v6[1] == 0 &&
+				  up->ut_addr_v6[2] == 0 &&
+				  up->ut_addr_v6[3] == 0) ? AF_INET : AF_INET6;
+
+		if (inet_ntop(af, up->ut_addr_v6, buf, sizeof buf))
+			return strdup(buf);
+
+		/* The best we can do is just return ut_host */
+	}
+
+	/* Restore zone index separator */
+	if (zone_index)
+		*zone_index = '%';
+
+	return strlen(up->ut_host) ? strdup(up->ut_host) : NULL;
 }
 
 int
