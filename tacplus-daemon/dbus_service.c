@@ -491,6 +491,9 @@ static int fill_account_transaction_from_bus_msg(struct account_send_param *p,
 		else if (strcmp("stop_time", key) == 0) {
 			p->stop_time = value;
 		}
+		else if (strcmp("timezone", key) == 0) {
+			p->timezone = value;
+		}
 		else if (strcmp("service", key) == 0) {
 			p->service = value;
 		}

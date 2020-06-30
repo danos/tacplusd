@@ -320,6 +320,10 @@ static int tacplus_acct_send_per_session(struct transaction *t)
 		if (tacplus_add_attrib(&attr, "stop_time", t->request.account.stop_time, false) < 0)
 			goto unable_to_send;
 
+	if (t->request.account.timezone)
+		if (tacplus_add_attrib(&attr, "timezone", t->request.account.timezone, false) < 0)
+			goto unable_to_send;
+
 	if (t->request.account.service)
 		if (tacplus_add_attrib(&attr, "service", t->request.account.service, false) < 0)
 			goto unable_to_send;

@@ -35,6 +35,7 @@ struct account_send_param {
 	char *task_id;
 	char *start_time;
 	char *stop_time;
+	char *timezone;
 	char *service;
 	char *protocol;
 	char **command;
