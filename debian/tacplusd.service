@@ -5,6 +5,7 @@ Description=Tacacs+ D-Bus Daemon
 Type=dbus
 BusName=net.vyatta.tacplus
 EnvironmentFile=/var/run/tacplus.env
+User=tacplusd
 ExecReload=/bin/kill -SIGHUP $MAINPID
 ExecStart=/usr/sbin/exec-tacplusd
 KillSignal=SIGTERM

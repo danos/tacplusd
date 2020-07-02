@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+USER=tacplusd
+
+if [ "$1" = "configure" ] && ! getent passwd tacplusd 2>&1 > /dev/null; then
+    adduser --system --home /run/tacplusd --no-create-home "$USER"
+
+    # Required to read the utmp file in order
+    # to determine remote login IP addresses.
+    usermod -a -G utmp "$USER"
+fi
+
+#DEBHELPER#

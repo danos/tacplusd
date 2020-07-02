@@ -9,7 +9,7 @@ Standards-Version: 3.9.8
 
 Package: tacplusd
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, lsb-base (>= 3.0-6)
+Depends: adduser, lsb-base (>= 3.0-6), ${misc:Depends}, ${shlibs:Depends}
 Provides: vyatta-tacplus-daemon
 Replaces: vyatta-tacplus-daemon
 Conflicts: vyatta-tacplus-daemon
