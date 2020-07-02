@@ -2,12 +2,12 @@
 Description=Tacacs+ D-Bus Daemon
 
 [Service]
-Type=forking
+Type=dbus
+BusName=net.vyatta.tacplus
 EnvironmentFile=/var/run/tacplus.env
 ExecReload=/bin/kill -SIGHUP $MAINPID
-ExecStart=/usr/sbin/tacplusd $CONFIG /run/tacplusd-default.pid
+ExecStart=/usr/sbin/exec-tacplusd
 KillSignal=SIGTERM
-PIDFile=/run/tacplusd-default.pid
 Restart=on-failure
 # should be maximum socket timeout permitted
 TimeoutStopSec=30

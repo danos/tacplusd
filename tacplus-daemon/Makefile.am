@@ -29,4 +29,6 @@ tacplusd_LDADD = \
 	-lm \
 	-lrt
 
+sbin_SCRIPTS = exec-tacplusd
+
 dist_dbusconf_DATA = net.vyatta.tacplus.conf

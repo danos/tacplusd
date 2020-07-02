@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# Copyright (c) 2020, AT&T Intellectual Property.
+# SPDX-License-Identifier: GPL-2.0-only
+
+if [ -z "$VRF" ] || [ "$VRF" = "default" ]; then
+    exec /usr/sbin/tacplusd "$CONFIG"
+fi
+
+exec /usr/sbin/chvrf "$VRF" /usr/sbin/tacplusd "$CONFIG"
