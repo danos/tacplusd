@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019, AT&T Intellectual Property.
+	Copyright (c) 2018-2020, AT&T Intellectual Property.
 	Copyright (c) 2015 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -111,9 +111,9 @@ int main(int argc, char *argv[])
 	char *tacplus_cfg;
 	char *tacplus_pid;
 
-	if (argc == 3) {
+	if (argc == 2 || argc == 3) {
 		tacplus_cfg = argv[1];
-		tacplus_pid = argv[2];
+		tacplus_pid = argc == 3 ? argv[2] : NULL;
 	}
 	else {
 		fprintf(stderr, "Insufficient arguments to the daemon\n");
@@ -125,7 +125,9 @@ int main(int argc, char *argv[])
 
 	if (!getenv("NODAEMON")) {
 		openlog("tacplusd", LOG_ODELAY, LOG_AUTH);
-		daemonize(tacplus_pid);
+
+		if (tacplus_pid)
+			daemonize(tacplus_pid);
 	}
 	else
 		openlog("tacplusd", LOG_PERROR, LOG_AUTH);
