@@ -374,6 +374,8 @@ bool tacplus_connect(void)
 	unsigned i;
 
 	syslog(LOG_DEBUG, "Number of servers in config: %d", opts->n_servers);
+	if (! opts->n_servers)
+		return false;
 
 	/* If we are offline there is no point continuing */
 	if (! tacplusd_online()) {

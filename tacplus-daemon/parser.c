@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -284,16 +284,14 @@ cleanup2:
 	g_strfreev(sections);
 	g_key_file_free(keyfile);
 
-	if (!nservers) {
-		syslog(LOG_ERR, "no servers configured");
-		exit(1);
-	}
-
 	*opts = tacplus_options_alloc(nservers);
 	if (!opts) {
 		syslog(LOG_CRIT, "tacplus_options allocation fail: out-of-memory");
 		exit(1);
 	}
+
+	if (!nservers)
+		return;
 
 	(*opts)->next_server = INVALID_SERVER_ID;
 	(*opts)->curr_server = 0;
