@@ -1,3 +1,11 @@
+tacplusd (1.22) unstable; urgency=medium
+
+  * tacplusd: make PID file argument optional
+  * Change tacplusd.service type from forking to dbus
+  * Run as un-privileged "tacplusd" user (Closes: VRVDR-52091)
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 08 Jul 2020 18:33:37 +0100
+
 tacplusd (1.21) unstable; urgency=medium
 
   * tacplusd gets stuck in offline mode
