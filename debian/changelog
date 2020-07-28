@@ -1,3 +1,10 @@
+tacplusd (1.23) unstable; urgency=medium
+
+  * Always attempt to get remote IP for transaction
+  * Support for timezone attr in accting transactions
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Tue, 28 Jul 2020 11:17:45 +0100
+
 tacplusd (1.22) unstable; urgency=medium
 
   * tacplusd: make PID file argument optional
