@@ -40,6 +40,9 @@
 #define GET_STATUS_ARGS ""
 #define GET_STATUS_RET  BUS_TYPE_ARRAY BUS_TYPE_STRING
 
+#define GET_ACCT_TASK_ID_ARGS ""
+#define GET_ACCT_TASK_ID_RET  BUS_TYPE_STRING
+
 #define ACCOUNT_SEND_ARGS BUS_TYPE_INT32 BUS_TYPE_STRING BUS_TYPE_STRING  \
 						  BUS_TYPE_STRING BUS_TYPE_STR_STR_DICT
 #define ACCOUNT_SEND_RET  BUS_TYPE_INT32
@@ -530,6 +533,37 @@ static void fill_account_transaction_task_id(struct account_send_param *p) {
 	}
 }
 
+static int get_account_task_id(sd_bus_message *m,
+							   __unused void *userdata,
+							   __unused sd_bus_error *error)
+{
+	int ret;
+	sd_bus_message *reply;
+	struct account_send_param p = {0};
+
+	syslog(LOG_DEBUG, "get_account_task_id() call");
+
+	ret = sd_bus_message_new_method_return(m, &reply);
+	if (ret < 0)
+		return ret;
+
+	fill_account_transaction_task_id(&p);
+	ret = sd_bus_message_append(reply, BUS_TYPE_STRING, p.task_id ? p.task_id : "");
+	if (ret < 0) {
+		syslog(LOG_ERR, "Failed to generate task ID reply: %d", ret);
+		goto done;
+	}
+
+	ret = sd_bus_send(sd_bus_message_get_bus(m), reply, NULL);
+	if (ret < 0)
+		syslog(LOG_DEBUG, "Failed to send get_account_task_id() response: %d", ret);
+
+done:
+	free(p.task_id);
+	sd_bus_message_unref(reply);
+	return ret;
+}
+
 static void fill_account_transaction_rem_addr(struct account_send_param *p) {
 	/*
 	 * If we don't have a remote login address then attempt to obtain one based
@@ -739,6 +773,8 @@ static const sd_bus_vtable serv_vtable[] = {
 	SD_BUS_VTABLE_START(0),
 	SD_BUS_METHOD("get_status", GET_STATUS_ARGS, GET_STATUS_RET,
 				  get_status, SD_BUS_VTABLE_UNPRIVILEGED),
+	SD_BUS_METHOD("get_account_task_id", GET_ACCT_TASK_ID_ARGS, GET_ACCT_TASK_ID_RET,
+				  get_account_task_id, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("account_send", ACCOUNT_SEND_ARGS, ACCOUNT_SEND_RET,
 				  account_send, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("cmd_account_send", CMD_ACCOUNT_SEND_ARGS, CMD_ACCOUNT_SEND_RET,
