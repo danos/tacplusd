@@ -43,6 +43,9 @@
 #define GET_ACCT_TASK_ID_ARGS ""
 #define GET_ACCT_TASK_ID_RET  BUS_TYPE_STRING
 
+#define RESET_TIMERS_ARGS ""
+#define RESET_TIMERS_RET  ""
+
 #define ACCOUNT_SEND_ARGS BUS_TYPE_INT32 BUS_TYPE_STRING BUS_TYPE_STRING  \
 						  BUS_TYPE_STRING BUS_TYPE_STR_STR_DICT
 #define ACCOUNT_SEND_RET  BUS_TYPE_INT32
@@ -357,6 +360,31 @@ static void *consume_dbus_req_thread(void *arg __unused)
 
 	syslog(LOG_DEBUG, "TACACS+ request_thread: exiting");
 	pthread_exit(NULL);
+}
+
+static int reset_timers(sd_bus_message *m,
+						__unused void *userdata,
+						__unused sd_bus_error *error)
+{
+	int ret;
+	sd_bus_message *reply;
+
+	syslog(LOG_DEBUG, "reset_timers() call");
+
+	ret = sd_bus_message_new_method_return(m, &reply);
+	if (ret < 0)
+		return ret;
+
+	TACPLUS_SERVER_LOOP(connControl->opts, serv)
+		tacplus_server_reset_hold_down(serv);
+	tacplusd_go_online();
+
+	ret = sd_bus_send(sd_bus_message_get_bus(m), reply, NULL);
+	if (ret < 0)
+		syslog(LOG_DEBUG, "Failed to send reset_timers() response: %d", ret);
+
+	sd_bus_message_unref(reply);
+	return ret;
 }
 
 static int fill_status_reply(struct sd_bus_message *m)
@@ -778,6 +806,8 @@ static const sd_bus_vtable serv_vtable[] = {
 				  get_status, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("get_account_task_id", GET_ACCT_TASK_ID_ARGS, GET_ACCT_TASK_ID_RET,
 				  get_account_task_id, SD_BUS_VTABLE_UNPRIVILEGED),
+	SD_BUS_METHOD("reset_timers", RESET_TIMERS_ARGS, RESET_TIMERS_RET,
+				  reset_timers, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("account_send", ACCOUNT_SEND_ARGS, ACCOUNT_SEND_RET,
 				  account_send, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("cmd_account_send", CMD_ACCOUNT_SEND_ARGS, CMD_ACCOUNT_SEND_RET,
