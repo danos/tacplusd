@@ -675,7 +675,7 @@ TEST(ServerConnection, resetHoldDown)
     struct tacplus_options::tacplus_options_server *serv = &opts->server[0];
 
     ut_set_cur_mono_time(110, 0);
-    serv->hold_down = 10;
+    serv->state.activeHoldDown = 10;
 
     SET_TIMESPEC_VALS(serv->state.lastTrouble, 105, 20221);
     CHECK_TIMESPEC_VALS(serv->state.lastTrouble, 105, 20221);
@@ -706,7 +706,7 @@ TEST(ServerConnection, remainingHoldDown)
     CHECK_TIMESPEC_VALS(remaining, 0, 0);
 
     /* Configure a hold down, still no connection issues detected */
-    serv.hold_down = 10;
+    serv.state.activeHoldDown = 10;
     held_down = tacplus_server_remaining_hold_down((const struct tacplus_options_server *)
                                                     &serv, &remaining);
     CHECK_FALSE(held_down);
@@ -778,7 +778,7 @@ TEST(ServerConnection, remainingHoldDownConfChange)
 
     /* Hold down timer is active */
     ut_set_cur_mono_time(20, 500);
-    serv.hold_down = 15;
+    serv.state.activeHoldDown = 15;
     SET_TIMESPEC_VALS(serv.state.lastTrouble, 14, 21984);
 
     held_down = tacplus_server_remaining_hold_down((const struct tacplus_options_server *)
@@ -787,7 +787,7 @@ TEST(ServerConnection, remainingHoldDownConfChange)
     CHECK_TIMESPEC_VALS(remaining, 9, 21484);
 
     /* Hold down timer increases */
-    serv.hold_down += 30;
+    serv.state.activeHoldDown += 30;
     ut_set_cur_mono_time(24, 98897);
 
     held_down = tacplus_server_remaining_hold_down((const struct tacplus_options_server *)
@@ -796,7 +796,7 @@ TEST(ServerConnection, remainingHoldDownConfChange)
     CHECK_TIMESPEC_VALS(remaining, 34, 999923087);
 
     /* Hold down timer decreases */
-    serv.hold_down -= 21;
+    serv.state.activeHoldDown -= 21;
     ut_set_cur_mono_time(26, 71298);
 
     held_down = tacplus_server_remaining_hold_down((const struct tacplus_options_server *)
@@ -805,7 +805,7 @@ TEST(ServerConnection, remainingHoldDownConfChange)
     CHECK_TIMESPEC_VALS(remaining, 11, 999950686);
 
     /* Hold down timer disabled */
-    serv.hold_down = 0;
+    serv.state.activeHoldDown = 0;
 
     held_down = tacplus_server_remaining_hold_down((const struct tacplus_options_server *)
                                                     &serv, &remaining);
@@ -823,28 +823,28 @@ TEST(ServerConnection, isHeldDown)
 
     /* Hold down timer is active */
     ut_set_cur_mono_time(30, 2480);
-    serv.hold_down = 25;
+    serv.state.activeHoldDown = 25;
     SET_TIMESPEC_VALS(serv.state.lastTrouble, 24, 21984);
 
     held_down = tacplus_server_is_held_down((const struct tacplus_options_server *) &serv);
     CHECK(held_down);
 
     /* Hold down timer increases */
-    serv.hold_down += 30;
+    serv.state.activeHoldDown += 30;
     ut_set_cur_mono_time(34, 98897);
 
     held_down = tacplus_server_is_held_down((const struct tacplus_options_server *) &serv);
     CHECK(held_down);
 
     /* Hold down timer decreases */
-    serv.hold_down -= 21;
+    serv.state.activeHoldDown -= 21;
     ut_set_cur_mono_time(36, 71298);
 
     held_down = tacplus_server_is_held_down((const struct tacplus_options_server *) &serv);
     CHECK(held_down);
 
     /* Hold down timer disabled */
-    serv.hold_down = 0;
+    serv.state.activeHoldDown = 0;
 
     held_down = tacplus_server_is_held_down((const struct tacplus_options_server *) &serv);
     CHECK_FALSE(held_down);
@@ -857,7 +857,7 @@ TEST(ServerConnection, remainingHoldDownSecs)
 
     /* Hold down timer is active */
     ut_set_cur_mono_time(20, 500);
-    serv.hold_down = 15;
+    serv.state.activeHoldDown = 15;
     SET_TIMESPEC_VALS(serv.state.lastTrouble, 14, 21984);
 
     remaining = tacplus_server_remaining_hold_down_secs(
@@ -865,7 +865,7 @@ TEST(ServerConnection, remainingHoldDownSecs)
     LONGS_EQUAL(9, remaining);
 
     /* Hold down timer increases */
-    serv.hold_down += 30;
+    serv.state.activeHoldDown += 30;
     ut_set_cur_mono_time(24, 98897);
 
     remaining = tacplus_server_remaining_hold_down_secs(
@@ -873,7 +873,7 @@ TEST(ServerConnection, remainingHoldDownSecs)
     LONGS_EQUAL(35, remaining);
 
     /* Hold down timer decreases */
-    serv.hold_down -= 21;
+    serv.state.activeHoldDown -= 21;
     ut_set_cur_mono_time(26, 71298);
 
     remaining = tacplus_server_remaining_hold_down_secs(
@@ -881,7 +881,7 @@ TEST(ServerConnection, remainingHoldDownSecs)
     LONGS_EQUAL(12, remaining);
 
     /* Hold down timer disabled */
-    serv.hold_down = 0;
+    serv.state.activeHoldDown = 0;
 
     remaining = tacplus_server_remaining_hold_down_secs(
                     (const struct tacplus_options_server *) &serv);
@@ -924,11 +924,14 @@ TEST(ServerConnection, copyServerState)
     SET_TIMESPEC_VALS(opts->server[0].state.lastTrouble, 10, 5);
     SET_TIMESPEC_VALS(opts->server[1].state.lastTrouble, -1, -1);
     SET_TIMESPEC_VALS(opts->server[2].state.lastTrouble, 767, 9867);
+    opts->server[0].state.activeHoldDown = 10;
+    opts->server[1].state.activeHoldDown = 15;
+    opts->server[2].state.activeHoldDown = 20;
 
     /* Set some config - this should not be transferred */
-    opts->server[0].hold_down = 10;
-    opts->server[1].hold_down = 15;
-    opts->server[2].hold_down = 20;
+    opts->server[0].hold_down = opts->server[0].state.activeHoldDown;
+    opts->server[1].hold_down = opts->server[1].state.activeHoldDown;
+    opts->server[2].hold_down = opts->server[2].state.activeHoldDown;
 
     /* Exactly the same servers remain in the new opts */
     new_opts = tacplus_options_alloc(num_servers);
@@ -954,6 +957,10 @@ TEST(ServerConnection, copyServerState)
     CHECK_EQUAL(new_opts->server[0].hold_down, 0);
     CHECK_EQUAL(new_opts->server[1].hold_down, 0);
     CHECK_EQUAL(new_opts->server[2].hold_down, 0);
+
+    CHECK_EQUAL(new_opts->server[0].state.activeHoldDown, 10);
+    CHECK_EQUAL(new_opts->server[1].state.activeHoldDown, 15);
+    CHECK_EQUAL(new_opts->server[2].state.activeHoldDown, 20);
 }
 
 TEST(ServerConnection, copyServerStateSomeMatch)
@@ -964,11 +971,14 @@ TEST(ServerConnection, copyServerStateSomeMatch)
     SET_TIMESPEC_VALS(opts->server[0].state.lastTrouble, 10, 5);
     SET_TIMESPEC_VALS(opts->server[1].state.lastTrouble, -1, -1);
     SET_TIMESPEC_VALS(opts->server[2].state.lastTrouble, 767, 9867);
+    opts->server[0].state.activeHoldDown = 10;
+    opts->server[1].state.activeHoldDown = 15;
+    opts->server[2].state.activeHoldDown = 20;
 
     /* Set some config - this should not be transferred */
-    opts->server[0].hold_down = 10;
-    opts->server[1].hold_down = 15;
-    opts->server[2].hold_down = 20;
+    opts->server[0].hold_down = opts->server[0].state.activeHoldDown;
+    opts->server[1].hold_down = opts->server[1].state.activeHoldDown;
+    opts->server[2].hold_down = opts->server[2].state.activeHoldDown;
 
     /* Only server ID 0 remains the same in the new opts */
     new_opts = tacplus_options_alloc(2);
@@ -990,6 +1000,9 @@ TEST(ServerConnection, copyServerStateSomeMatch)
 
     CHECK_EQUAL(new_opts->server[0].hold_down, 0);
     CHECK_EQUAL(new_opts->server[1].hold_down, 0);
+
+    CHECK_EQUAL(new_opts->server[0].state.activeHoldDown, 10);
+    CHECK_EQUAL(new_opts->server[1].state.activeHoldDown, 0);
 }
 
 TEST(ServerConnection, copyServerStateAdded)
@@ -1000,11 +1013,14 @@ TEST(ServerConnection, copyServerStateAdded)
     SET_TIMESPEC_VALS(opts->server[0].state.lastTrouble, 10, 5);
     SET_TIMESPEC_VALS(opts->server[1].state.lastTrouble, 0, 2);
     SET_TIMESPEC_VALS(opts->server[2].state.lastTrouble, 767, 9867);
+    opts->server[0].state.activeHoldDown = 0;
+    opts->server[1].state.activeHoldDown = 15;
+    opts->server[2].state.activeHoldDown = 20;
 
     /* Set some config - this should not be transferred */
-    opts->server[0].hold_down = 0;
-    opts->server[1].hold_down = 15;
-    opts->server[2].hold_down = 20;
+    opts->server[0].hold_down = opts->server[0].state.activeHoldDown;
+    opts->server[1].hold_down = opts->server[1].state.activeHoldDown;
+    opts->server[2].hold_down = opts->server[2].state.activeHoldDown;
 
     /* Add an additional server to new opts */
     new_opts = tacplus_options_alloc(4);
@@ -1036,6 +1052,11 @@ TEST(ServerConnection, copyServerStateAdded)
     CHECK_EQUAL(new_opts->server[1].hold_down, 0);
     CHECK_EQUAL(new_opts->server[2].hold_down, 0);
     CHECK_EQUAL(new_opts->server[3].hold_down, 0);
+
+    CHECK_EQUAL(new_opts->server[0].state.activeHoldDown, 0);
+    CHECK_EQUAL(new_opts->server[1].state.activeHoldDown, 15);
+    CHECK_EQUAL(new_opts->server[2].state.activeHoldDown, 20);
+    CHECK_EQUAL(new_opts->server[3].state.activeHoldDown, 0);
 }
 
 TEST(ServerConnection, tacplusReloadOptionsNull)

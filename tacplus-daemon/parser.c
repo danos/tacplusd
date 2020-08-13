@@ -310,6 +310,7 @@ cleanup2:
 		(*opts)->server[i].secret = conn[i].secret;
 		(*opts)->server[i].timeout = conn[i].timeout;
 		(*opts)->server[i].hold_down = conn[i].hold_down;
+		(*opts)->server[i].state.activeHoldDown = conn[i].hold_down;
 #ifdef HAVE_LIBTAC_EVENT
 		(*opts)->server[i].session = NULL;
 #endif

@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -51,6 +51,7 @@ struct tacplus_options
 #endif
 		struct tacplus_server_state {
 			struct timespec lastTrouble;
+			unsigned activeHoldDown;
 		} state;
 	} server[0];
 };

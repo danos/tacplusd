@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -32,7 +32,7 @@ tacplus_server_remaining_hold_down_at(const struct tacplus_options_server *serve
 		SET_TIMESPEC_VALS(*remaining, 0, 0);
 
 	/* Hold down disabled */
-	if (server->hold_down == 0)
+	if (server->state.activeHoldDown == 0)
 		return false;
 
 	/* No trouble seen */
@@ -44,7 +44,7 @@ tacplus_server_remaining_hold_down_at(const struct tacplus_options_server *serve
 		return false;
 
 	expires = server->state.lastTrouble;
-	expires.tv_sec += server->hold_down;
+	expires.tv_sec += server->state.activeHoldDown;
 
 	if (timespec_cmp(cur_time, &expires) >= 0)
 		return false;
@@ -96,6 +96,7 @@ tacplus_server_activate_hold_down(struct tacplus_options_server *server)
 		free(addr_str);
 	}
 
+	server->state.activeHoldDown = server->hold_down;
 	cur_mono_time(&server->state.lastTrouble);
 }
 
@@ -509,7 +510,7 @@ tacplus_copy_server_state(struct tacplus_options *from_opts,
 		 * If the existing server did not have a hold down timer configured
 		 * then ensure all hold down state is cleared on the new server
 		 */
-		if (existing_server->hold_down == 0)
+		if (existing_server->state.activeHoldDown == 0)
 			tacplus_server_reset_hold_down(new_server);
 	}
 }
@@ -559,6 +560,13 @@ struct tacplus_options *tacplus_reload_options(struct tacplus_options **cur_opts
 		/* Now we have the server state populate the active and next server IDs */
 		tacplus_clear_active_server(new_opts);
 		TACPLUS_SERVER_LOOP(new_opts, serv) {
+			/*
+			 * Changes to per-server hold down timers *are* effected on a
+			 * reload, therefore update activeHoldDown. This must be done
+			 * before calling tacplus_server_is_held_down().
+			 */
+			serv->state.activeHoldDown = serv->hold_down;
+
 			if (tacplus_server_is_held_down(serv))
 				tacplus_update_next_server(new_opts, serv);
 			else if (! tacplus_have_active_server(new_opts))
