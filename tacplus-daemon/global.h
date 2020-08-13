@@ -47,5 +47,6 @@ extern ConnectionControl *connControl;
 bool tacplusd_go_online();
 bool tacplusd_go_offline(const struct timespec *, offline_mode_t);
 bool tacplusd_online();
+time_t tacplusd_remaining_offline_secs();
 
 #endif /* GLOBAL_H */

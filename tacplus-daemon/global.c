@@ -118,3 +118,16 @@ bool tacplusd_go_offline(const struct timespec *time, offline_mode_t mode) {
 bool tacplusd_online() {
 	return !connControl->state.offline;
 }
+
+time_t tacplusd_remaining_offline_secs() {
+	struct timespec remaining = {};
+
+	pthread_mutex_lock(&connControl->state.lock);
+
+	if (connControl->state.offline)
+		remaining_timer_interval(connControl->state.offline_timer, &remaining);
+
+	pthread_mutex_unlock(&connControl->state.lock);
+
+	return timespec_nearest_sec(&remaining);
+}
