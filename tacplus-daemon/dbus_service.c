@@ -760,7 +760,7 @@ AUTHOR_SEND_VARIANT(cmd_author_send, cmd_author_fill_handler);
 
 int signal_offline_state_change() {
 	if (service->stop) {
-		syslog(LOG_ERR, "Unable to signal offline state change");
+		syslog(LOG_DEBUG, "Unable to signal offline state change");
 		return -1;
 	}
 
