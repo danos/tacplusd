@@ -17,9 +17,6 @@
 
 #include "utils.h"
 
-#define TACPLUSD_IDLE_TIMEOUT		300
-#define TACPLUSD_REQUEST_RETRIES	3
-
 struct tacplus_options_server;
 
 struct tac_session_extra {
