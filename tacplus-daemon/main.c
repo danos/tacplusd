@@ -22,7 +22,7 @@
 static int run = 1; /* Initially to enter while loop */
 static int reload = 0;
 
-static ConnectionControl _connControl = { .state = { .offline = false } };
+static ConnectionControl _connControl = CONN_CONTROL_INIT;
 ConnectionControl *connControl = &_connControl;
 
 static void signal_wait(sigset_t *set)

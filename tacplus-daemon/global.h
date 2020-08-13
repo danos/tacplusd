@@ -44,6 +44,12 @@ typedef struct {
 
 extern ConnectionControl *connControl;
 
+#define CONN_CONTROL_INIT {       \
+	.state = {                    \
+		.offline = false,         \
+	}                             \
+}
+
 bool tacplusd_go_online();
 bool tacplusd_go_offline(const struct timespec *, offline_mode_t);
 bool tacplusd_online();
