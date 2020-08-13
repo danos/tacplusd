@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -321,4 +321,20 @@ TEST(Utils, timespecSub)
     CHECK_TIMESPEC_VALS(res, -8, 999000454);
     CHECK_TIMESPEC_VALS(a, 12, 98200);
     CHECK_TIMESPEC_VALS(b, 4, 999098654);
+}
+
+/*
+ * timespec_nearest_sec() tests
+ */
+
+TEST(Utils, timespecNearestSec)
+{
+    struct timespec ts = { 1, 500000000 };
+
+    LONGS_EQUAL(2, timespec_nearest_sec(&ts));
+    CHECK_TIMESPEC_VALS(ts, 1, 500000000);
+
+    ts.tv_nsec--;
+    LONGS_EQUAL(1, timespec_nearest_sec(&ts));
+    CHECK_TIMESPEC_VALS(ts, 1, 499999999);
 }

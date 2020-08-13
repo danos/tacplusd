@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019 AT&T Intellectual Property.
+	Copyright (c) 2018-2020 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -48,16 +48,23 @@ struct addrinfo *get_interface_addrinfo(const char *ifname, int af);
 void free_interface_addrinfo(struct addrinfo **info);
 int is_sockaddr_loopback(struct sockaddr *saddr);
 int is_interface_up(const char *ifname);
+char *get_tty_login_addr(const char *tty);
+int new_cb_timer(timer_t *timer, void (*cb) (union sigval), union sigval *user);
+int set_timer(timer_t timer, const struct itimerspec *it);
+int expire_timer(timer_t timer);
+int remaining_timer_interval(timer_t timer, struct timespec *ts);
+
 void cur_mono_time(struct timespec *ts);
 struct timespec *timespec_normalise(struct timespec *spec);
 struct timespec *timespec_sub(const struct timespec *a,
 							  const struct timespec *b,
 							  struct timespec *result);
 int timespec_cmp(const struct timespec *a, const struct timespec *b);
-char *get_tty_login_addr(const char *tty);
-int new_cb_timer(timer_t *timer, void (*cb) (union sigval), union sigval *user);
-int set_timer(timer_t timer, const struct itimerspec *it);
-int expire_timer(timer_t timer);
-int remaining_timer_interval(timer_t timer, struct timespec *ts);
+
+static inline time_t
+timespec_nearest_sec(const struct timespec *ts)
+{
+	return (ts->tv_nsec >= SEC_TO_NSECS/2) ? ts->tv_sec+1 : ts->tv_sec;
+}
 
 #endif /* UTILS_H */

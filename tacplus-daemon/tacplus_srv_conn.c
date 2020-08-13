@@ -71,12 +71,7 @@ tacplus_server_remaining_hold_down_secs(const struct tacplus_options_server *ser
 	struct timespec remaining;
 
 	tacplus_server_remaining_hold_down(server, &remaining);
-
-	/* Round to nearest second */
-	if (remaining.tv_nsec >= SEC_TO_NSECS/2)
-		remaining.tv_sec++;
-
-	return remaining.tv_sec;
+	return timespec_nearest_sec(&remaining);
 }
 
 bool
