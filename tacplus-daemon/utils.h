@@ -58,5 +58,6 @@ char *get_tty_login_addr(const char *tty);
 int new_cb_timer(timer_t *timer, void (*cb) (union sigval), union sigval *user);
 int set_timer(timer_t timer, const struct itimerspec *it);
 int expire_timer(timer_t timer);
+int remaining_timer_interval(timer_t timer, struct timespec *ts);
 
 #endif /* UTILS_H */

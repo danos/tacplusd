@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2019, AT&T Intellectual Property
+	Copyright (c) 2019-2020, AT&T Intellectual Property
 
 	SPDX-License-Identifier: GPL-2.0-only
 */

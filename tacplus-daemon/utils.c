@@ -361,3 +361,19 @@ expire_timer(timer_t timer)
 
 	return set_timer(timer, &it);
 }
+
+int
+remaining_timer_interval(timer_t timer, struct timespec *ts)
+{
+	struct itimerspec it;
+
+	int ret = timer_gettime(timer, &it);
+	if (ret < 0) {
+		syslog(LOG_ERR, "timer_gettime() failed (%d): %s", ret, strerror(errno));
+		return ret;
+	}
+
+	timespec_normalise(&it.it_value);
+	*ts = it.it_value;
+	return ret;
+}
