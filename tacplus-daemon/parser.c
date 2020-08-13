@@ -66,7 +66,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 		.ai_flags = AI_NUMERICHOST,
 	};
 	struct connection conn[TACPLUS_MAX_SERVERS];
-	unsigned nservers, setupTimeout;
+	unsigned nservers, setupTimeout, offlineTimer;
 	int dscp;
 	unsigned i, j;
 
@@ -113,6 +113,17 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 	if (setupTimeout <= 0) {
 		syslog(LOG_ERR, "parse SetupTimeout option must be higher than 0.\n");
 		goto cleanup2;
+	}
+
+	offlineTimer = g_key_file_get_integer(keyfile, s_general, "OfflineTimer", &error);
+	if (error) {
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+			g_syslog(LOG_ERR, "parse OfflineTimer option: %s", &error);
+			goto cleanup2;
+		}
+		offlineTimer = 0;
+		g_error_free(error);
+		error = NULL;
 	}
 
 	dscp = g_key_file_get_integer(keyfile, s_general, "Dscp", &error);
@@ -301,6 +312,7 @@ cleanup2:
 	(*opts)->broadcast = broadcast;
 	(*opts)->dscp = dscp;
 	(*opts)->setupTimeout = setupTimeout;
+	(*opts)->offlineTimer = offlineTimer;
 
 	for (i = 0; i < nservers; ++i) {
 		(*opts)->server[i].id = i;

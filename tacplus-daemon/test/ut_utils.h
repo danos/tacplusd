@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include "utils.h"
+#include "global.h"
 
 #define ARRAY_SIZE(A) (sizeof(A)/sizeof(A[0]))
 
@@ -169,7 +170,7 @@ __wrap_tacplusd_go_online() {
 }
 
 bool
-__wrap_tacplusd_go_offline(const struct timespec *ts) {
+__wrap_tacplusd_go_offline(const struct timespec *ts, offline_mode_t mode) {
 	struct timespec ts_copy = *ts;
 	timespec_normalise(&ts_copy);
 
@@ -181,6 +182,8 @@ __wrap_tacplusd_go_offline(const struct timespec *ts) {
 	_offline_until.tv_sec += ts_copy.tv_sec;
 	_offline_until.tv_nsec += ts_copy.tv_nsec;
 	timespec_normalise(&_offline_until);
+
+	connControl->state.offline_mode = mode;
 
 	return true;
 }

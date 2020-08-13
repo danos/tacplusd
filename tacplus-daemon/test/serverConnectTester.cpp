@@ -53,10 +53,13 @@ TEST_GROUP(ServerConnection) {
     {
         cleanup_tacplus_options(&opts);
         POINTERS_EQUAL(NULL, opts);
+        connControl->opts = NULL;
 
         free_statistics();
 
         ut_reset_tac_connect_wrapper();
+        ut_set_cur_mono_time(0, 0);
+        tacplusd_go_online();
     }
 
 };
@@ -1303,6 +1306,10 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigDecrementBelowRemaining
     POINTERS_EQUAL(NULL, new_opts);
 }
 
+/********************************
+ * Implicit offline timer tests *
+ ********************************/
+
 TEST(ServerConnection, tacplusReloadOptionsNoHoldDownConfigOnlineCheck)
 {
     struct tacplus_options *new_opts = copy_tacplus_options(opts);
@@ -1369,10 +1376,13 @@ static void ut_do_failing_tacplus_connect(
     ut_set_tac_connect_fds(fds, opts->n_servers);
 
     if (enforce_go_offline) {
-        LONGS_EQUAL_TEXT(opts->n_servers, num_servers_with_hold_down,
-                         "Test requires a hold down on all servers");
+        if (!opts->offlineTimer)
+            LONGS_EQUAL_TEXT(opts->n_servers, num_servers_with_hold_down,
+                             "Test requires a hold down on all servers");
     }
     else {
+        CHECK_TEXT(!opts->offlineTimer,
+                   "Invalid test - tacplusd will go offline when an offline timer is configured");
         CHECK_TEXT(num_servers_with_hold_down < opts->n_servers,
                    "Test requires no hold down on at least one server");
     }
@@ -1434,6 +1444,8 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigDisableOnlineCheck)
     /* Go offline */
     ut_do_failing_tacplus_connect(opts, true);
 
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
     /* Pass some time (but still within offline period) and reload */
     ut_inc_cur_mono_time(5, 0);
     POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
@@ -1464,6 +1476,8 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigDisableOneOnlineCheck)
     /* Go offline */
     ut_do_failing_tacplus_connect(opts, true);
 
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
     /* Pass some time (but still within offline period) and reload */
     ut_inc_cur_mono_time(15, 0);
     POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
@@ -1492,12 +1506,15 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigIncrementOnlineCheck)
     /* Go offline */
     ut_do_failing_tacplus_connect(opts, true);
 
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
     /* Pass some time (but still within offline period) and reload */
     ut_inc_cur_mono_time(5, 0);
     POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
 
     /* We should still be offline */
     CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
 
     /* Pass enough time that the original hold down would have expired */
     ut_inc_cur_mono_time(6, 0);
@@ -1532,12 +1549,15 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigDecrementOnlineCheck)
     /* Go offline */
     ut_do_failing_tacplus_connect(opts, true);
 
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
     /* Pass some time (but still within offline period) and reload */
     ut_inc_cur_mono_time(5, 0);
     POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
 
     /* We should still be offline */
     CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
 
     /* Pass enough time that the new hold down expires */
     ut_inc_cur_mono_time(6, 0);
@@ -1566,11 +1586,515 @@ TEST(ServerConnection, tacplusReloadOptionsHoldDownConfigDecrementBelowRemaining
     /* Go offline */
     ut_do_failing_tacplus_connect(opts, true);
 
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
     /* Pass enough time that the new hold down expires */
     ut_inc_cur_mono_time(15, 0);
     POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
 
     /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+/*********************************************
+ * Configured (explicit) offline timer tests *
+ *********************************************/
+
+TEST(ServerConnection, tacplusOfflineTimer)
+{
+    opts->offlineTimer = 10;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the offline timer expires */
+    ut_inc_cur_mono_time(10, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+}
+
+TEST(ServerConnection, tacplusHoldDownGreaterThanOfflineTimer)
+{
+    opts->offlineTimer = 10;
+
+    /* Add hold down to config */
+    opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = 30;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the offline period expires */
+    ut_inc_cur_mono_time(10, 0);
+
+    /* We should still be offline */
+    CHECK_FALSE(tacplusd_online());
+
+    /* Until the first hold down timer expires at t20 */
+    ut_inc_cur_mono_time(10, 0);
+    CHECK_TRUE(tacplusd_online());
+    CHECK(! tacplus_server_is_held_down(
+        (struct tacplus_options_server *)&opts->server[0]));
+
+    /* And no server should be held down at t30 */
+    ut_inc_cur_mono_time(10, 0);
+    TACPLUS_SERVER_LOOP(opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+}
+
+TEST(ServerConnection, tacplusHoldDownLessThanOfflineTimer)
+{
+    opts->offlineTimer = 60;
+
+    /* Add hold down to config */
+    opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = 30;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the hold down timers expire */
+    ut_inc_cur_mono_time(30, 0);
+
+    /* We should still be offline */
+    CHECK_FALSE(tacplusd_online());
+
+    /* Until the offline timer expires at t60 */
+    ut_inc_cur_mono_time(30, 0);
+    CHECK_TRUE(tacplusd_online());
+
+    /* And no server should be held down */
+    TACPLUS_SERVER_LOOP(opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+}
+
+TEST(ServerConnection, tacplusHoldDownEqualOfflineTimer)
+{
+    opts->offlineTimer = 60;
+
+    /* Add hold down to config */
+    opts->server[0].hold_down = 60;
+    opts->server[1].hold_down = 60;
+    opts->server[2].hold_down = 60;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* We should be back online after 60 seconds */
+    ut_inc_cur_mono_time(60, 0);
+    CHECK_TRUE(tacplusd_online());
+
+    /* And no server should be held down */
+    TACPLUS_SERVER_LOOP(opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+}
+
+TEST(ServerConnection, tacplusHoldDownSubsetWithOfflineTimer)
+{
+    opts->offlineTimer = 60;
+
+    /* Add hold down to some servers */
+    opts->server[0].hold_down = 30;
+    opts->server[1].hold_down = 30;
+    opts->server[2].hold_down = 0;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the hold down timers expire */
+    ut_inc_cur_mono_time(30, 0);
+
+    /* We should still be offline */
+    CHECK_FALSE(tacplusd_online());
+
+    /* Although the servers are no longer held down */
+    TACPLUS_SERVER_LOOP(opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    /* We go online again after the offline period expires at t60 */
+    ut_inc_cur_mono_time(30, 0);
+    CHECK_TRUE(tacplusd_online());
+}
+
+TEST(ServerConnection, tacplusOfflineTimerReload)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    opts->offlineTimer = 10;
+    new_opts->offlineTimer = 20;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass some time (but still within original offline period) and reload */
+    ut_inc_cur_mono_time(5, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Adjustments to the configured offline timer value don't affect a
+     * running timer, so pass just enough time to expire the original timer
+     * value.
+     */
+    ut_inc_cur_mono_time(5, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusOfflineTimerReloadRemove)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    opts->offlineTimer = 10;
+    new_opts->offlineTimer = 0;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass some time (but still within the original offline period) and reload */
+    ut_inc_cur_mono_time(5, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Adjustments to the configured offline timer value don't affect a
+     * running timer, so pass just enough time to expire the original timer
+     * value.
+     */
+    ut_inc_cur_mono_time(5, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusOfflineTimerReloadRaiseHoldDown)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add hold down and offline timer to current config */
+    opts->offlineTimer = 60;
+    opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = 30;
+
+    /* Decrease hold down on new config */
+    new_opts->offlineTimer = opts->offlineTimer;
+    new_opts->server[0].hold_down = 65;
+    new_opts->server[1].hold_down = 70;
+    new_opts->server[2].hold_down = 75;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass some time (but still within the original offline period) and reload */
+    ut_inc_cur_mono_time(50, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Adjustments to the hold down timers do not affect a running offline
+     * timer, so pass just enough time to expire the original timer value.
+     */
+    ut_inc_cur_mono_time(10, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    /* And no servers should be held down */
+    TACPLUS_SERVER_LOOP(new_opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusOfflineTimerReloadLowerHoldDown)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add hold down and offline timer to current config */
+    opts->offlineTimer = 60;
+    opts->server[0].hold_down = 100;
+    opts->server[1].hold_down = 105;
+    opts->server[2].hold_down = 110;
+
+    /* Decrease hold down on new config */
+    new_opts->offlineTimer = opts->offlineTimer;
+    new_opts->server[0].hold_down = 20;
+    new_opts->server[1].hold_down = 25;
+    new_opts->server[2].hold_down = 30;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass some time (but still within the original offline period) and reload */
+    ut_inc_cur_mono_time(50, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Adjustments to the hold down timers do not affect a running offline
+     * timer, so pass just enough time to expire the original timer value.
+     * The original offline timer value was defined as the minimum hold
+     * down timer value, since this was greater than the explicit offline period.
+     */
+    ut_inc_cur_mono_time(50, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    /* With only the first server no longer held down */
+    CHECK(! tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[0]));
+    CHECK(tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[1]));
+    CHECK(tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[2]));
+
+    /* Pass enough time that the remaining hold down timers expire */
+    ut_inc_cur_mono_time(10, 0);
+
+    /* And no servers should be held down */
+    TACPLUS_SERVER_LOOP(new_opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusHeldDownAddOfflineTimer)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add hold down to current and new config */
+    opts->server[0].hold_down = new_opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = new_opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = new_opts->server[2].hold_down = 30;
+
+    /* Add offline timer to new config */
+    new_opts->offlineTimer = 60;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    /* Current config has no explicit offline timer, hence OFFLINE_HOLD_DOWN mode */
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
+    /* Pass some time (but still within offline period) and reload */
+    ut_inc_cur_mono_time(15, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+
+    /*
+     * Even though we configured an explicit offline timer when we reloaded,
+     * we were already in OFFLINE_HOLD_DOWN mode. Therefore the mode should
+     * be un-changed.
+     */
+    CHECK_EQUAL(OFFLINE_HOLD_DOWN, connControl->state.offline_mode);
+
+    /* Pass enough time to expire the offline timer, at t20 */
+    ut_inc_cur_mono_time(5, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    /* With only the first server no longer held down */
+    CHECK(! tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[0]));
+    CHECK(tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[1]));
+    CHECK(tacplus_server_is_held_down(
+                (struct tacplus_options_server *)&new_opts->server[2]));
+
+    /* Pass enough time that the remaining hold down timers expire */
+    ut_inc_cur_mono_time(10, 0);
+
+    /* And no servers should be held down */
+    TACPLUS_SERVER_LOOP(new_opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    /* If we go offline again, we should now be in OFFLINE_EXPLICIT mode */
+    connControl->opts = new_opts;
+    ut_do_failing_tacplus_connect(new_opts, true);
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusHeldDownRaiseOfflineTimer)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add hold down to current and new config */
+    opts->server[0].hold_down = new_opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = new_opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = new_opts->server[2].hold_down = 30;
+
+    /* Set offline timer in current config */
+    opts->offlineTimer = 35;
+
+    /* Raise offline timer in new config */
+    new_opts->offlineTimer = 60;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Expire the hold down timers but remain within the original
+     * offline period and reload.
+     */
+    ut_inc_cur_mono_time(30, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the original offline period expires */
+    ut_inc_cur_mono_time(5, 0);
+
+    /* We should be online again */
+    CHECK_TRUE(tacplusd_online());
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusHeldDownLowerOfflineTimer)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add hold down to current and new config */
+    opts->server[0].hold_down = new_opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = new_opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = new_opts->server[2].hold_down = 30;
+
+    /* Set offline timer in current config */
+    opts->offlineTimer = 60;
+
+    /* Reduce offline timer in new config */
+    new_opts->offlineTimer = 10;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time that the new offline timer period would expire */
+    ut_inc_cur_mono_time(15, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /* Should still be offline since the new timer should not take effect */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* Pass enough time to expire all hold down timers, at t30 */
+    ut_inc_cur_mono_time(15, 0);
+
+    /* We should still not be online */
+    CHECK_FALSE(tacplusd_online());
+
+    /* Although the individual servers are no longer held down */
+    TACPLUS_SERVER_LOOP(new_opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    /* Expire the original/running offline timer, at t60 */
+    ut_inc_cur_mono_time(30, 0);
+
+    /* And we should now be online */
+    CHECK_TRUE(tacplusd_online());
+
+    cleanup_tacplus_options(&new_opts);
+    POINTERS_EQUAL(NULL, new_opts);
+}
+
+TEST(ServerConnection, tacplusHeldDownRemoveOfflineTimer)
+{
+    struct tacplus_options *new_opts = copy_tacplus_options(opts);
+
+    /* Add offline timer to current config */
+    opts->offlineTimer = 60;
+
+    /* Add hold down to current and new config */
+    opts->server[0].hold_down = new_opts->server[0].hold_down = 20;
+    opts->server[1].hold_down = new_opts->server[1].hold_down = 25;
+    opts->server[2].hold_down = new_opts->server[2].hold_down = 30;
+
+    /* Go offline */
+    ut_do_failing_tacplus_connect(opts, true);
+
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /*
+     * Expire the hold down timers but remain within the original
+     * offline period and reload.
+     */
+    ut_inc_cur_mono_time(45, 0);
+    POINTERS_EQUAL(new_opts, tacplus_reload_options(&opts, new_opts));
+
+    /*
+     * Should still be offline. Even though the new config did not specify
+     * an offline timer value, this should not take effect on a reload.
+     */
+    CHECK_FALSE(tacplusd_online());
+    CHECK_EQUAL(OFFLINE_EXPLICIT, connControl->state.offline_mode);
+
+    /* But the individual servers are not held down */
+    TACPLUS_SERVER_LOOP(new_opts, serv)
+        CHECK(! tacplus_server_is_held_down(serv));
+
+    /* Pass enough time to expire the offline period, at t60 */
+    ut_inc_cur_mono_time(15, 0);
+
+    /* And we should be online again */
     CHECK_TRUE(tacplusd_online());
 
     cleanup_tacplus_options(&new_opts);

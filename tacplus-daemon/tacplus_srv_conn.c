@@ -347,24 +347,43 @@ unsigned tacplus_connect_all(void)
 }
 #endif
 
-bool
-go_offline_until_next_hold_down_expiry(struct tacplus_options *opts)
+static bool
+go_offline(struct tacplus_options *opts, bool use_offline_timer)
 {
 	struct itimerspec it = {};
 	struct timespec *ts = &it.it_value;
+	offline_mode_t mode;
 
-	if (! tacplus_have_next_server(opts)) {
-		syslog(LOG_DEBUG, "Cannot go offline (no next server)");
-		return false;
-	}
+	/*
+	 * If an offline timer has been configured, and it is to be used, then
+	 * the mode is always OFFLINE_EXPLICIT even if the calculated offline period
+	 * is the time until the soonest expiring hold down timer.
+	 */
+	if (use_offline_timer && opts->offlineTimer)
+		mode = OFFLINE_EXPLICIT;
+	else
+		mode = OFFLINE_HOLD_DOWN;
 
-	if (!tacplus_server_remaining_hold_down(
-			tacplus_server(opts, opts->next_server), ts))
+	if (tacplus_have_next_server(opts))
+		tacplus_server_remaining_hold_down(
+			tacplus_server(opts, opts->next_server), ts);
+
+	if (use_offline_timer && opts->offlineTimer > ts->tv_sec)
+		SET_TIMESPEC_VALS(*ts, opts->offlineTimer, 0);
+
+	if (TIMESPEC_VALS_EQ(*ts, 0, 0))
 		return false;
 
 	syslog(LOG_DEBUG, "Setting offline timer for %lis %lins", ts->tv_sec, ts->tv_nsec);
 
-	return tacplusd_go_offline(ts);
+	tacplus_clear_active_server(opts);
+	return tacplusd_go_offline(ts, mode);
+}
+
+bool
+go_offline_until_next_hold_down_expiry(struct tacplus_options *opts)
+{
+	return go_offline(opts, false);
 }
 
 bool tacplus_connect(void)
@@ -429,19 +448,16 @@ bool tacplus_connect(void)
 		tacplus_update_next_server(opts, tacplus_server(opts, i));
 	}
 
-	if (all_servers_held_down) {
-		go_offline_until_next_hold_down_expiry(opts);
-		tacplus_clear_active_server(opts);
-	}
+	go_offline(opts, true);
 
 #ifdef HAVE_LIBTAC_EVENT
 	tac_session_free(sess);
 #endif
 
-fail:
 	if (all_servers_held_down)
 		syslog(LOG_WARNING, "All servers have active hold down timers");
 
+fail:
 	last_connect_failed = true;
 	return false;
 }
@@ -557,6 +573,10 @@ struct tacplus_options *tacplus_reload_options(struct tacplus_options **cur_opts
 	if (new_opts) {
 		tacplus_copy_server_state(*cur_opts, new_opts);
 
+		/* If an explicit offline timer was configured we do nothing and let it run */
+		if (! tacplusd_online() && connControl->state.offline_mode == OFFLINE_EXPLICIT)
+			goto finish;
+
 		/* Now we have the server state populate the active and next server IDs */
 		tacplus_clear_active_server(new_opts);
 		TACPLUS_SERVER_LOOP(new_opts, serv) {
@@ -582,11 +602,18 @@ struct tacplus_options *tacplus_reload_options(struct tacplus_options **cur_opts
 		if (! tacplusd_online()) {
 			if (tacplus_have_active_server(new_opts))
 				tacplusd_go_online();
-			else
+			else {
+				/*
+				 * Changes to the offline timer value are not effected
+				 * on a reload, so only take hold down timers into account
+				 * when re-calculating the offline period.
+				 */
 				go_offline_until_next_hold_down_expiry(new_opts);
+			}
 		}
 	}
 
+finish:
 	cleanup_tacplus_options(cur_opts);
 	return new_opts;
 }

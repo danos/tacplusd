@@ -35,7 +35,7 @@ struct tacplus_options
 	unsigned n_servers, curr_server, next_server;
 	bool broadcast;
 	uint8_t dscp;
-	unsigned setupTimeout;
+	unsigned setupTimeout, offlineTimer;
 	struct tacplus_options_server {
 		unsigned id;
 		struct addrinfo *addrs;

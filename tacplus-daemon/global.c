@@ -64,7 +64,7 @@ bool tacplusd_go_online() {
 	return ret == 0;
 }
 
-bool tacplusd_go_offline(const struct timespec *time) {
+bool tacplusd_go_offline(const struct timespec *time, offline_mode_t mode) {
 	struct itimerspec it = { .it_value = *time };
 
 	if (TIMESPEC_VALS_EQ(*time, 0, 0))
@@ -90,9 +90,19 @@ bool tacplusd_go_offline(const struct timespec *time) {
 	}
 
 	if (connControl->state.offline) {
+		if (mode != connControl->state.offline_mode) {
+			syslog(LOG_DEBUG, "Already offline - ignoring %d -> %d mode change",
+				   connControl->state.offline_mode, mode);
+		}
+
 		pthread_mutex_unlock(&connControl->state.lock);
 		return true;
 	}
+
+	/* online --> offline transition */
+
+	/* Mode cannot change without first expiring */
+	connControl->state.offline_mode = mode;
 
 	/* If we were previously online then signal a state change */
 	connControl->state.offline = true;
@@ -100,7 +110,8 @@ bool tacplusd_go_offline(const struct timespec *time) {
 
 	pthread_mutex_unlock(&connControl->state.lock);
 
-	syslog(LOG_WARNING, "TACACS+ component has gone offline");
+	syslog(LOG_WARNING, "TACACS+ component offline for %lis",
+		   timespec_nearest_sec(time));
 	return true;
 }
 

@@ -6,11 +6,19 @@
 	SPDX-License-Identifier: GPL-2.0-only
 */
 
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+typedef enum {
+	OFFLINE_HOLD_DOWN,
+	OFFLINE_EXPLICIT
+} offline_mode_t;
 
 struct tacplus_global_state {
 	/* Lock to be held while manipulating global state */
@@ -24,6 +32,9 @@ struct tacplus_global_state {
 
 	/* Flag indicating whether the component is offline */
 	bool offline;
+
+	/* Most recent offline mode (determines config reload behaviour) */
+	offline_mode_t offline_mode;
 };
 
 typedef struct {
@@ -34,5 +45,7 @@ typedef struct {
 extern ConnectionControl *connControl;
 
 bool tacplusd_go_online();
-bool tacplusd_go_offline(const struct timespec *);
+bool tacplusd_go_offline(const struct timespec *, offline_mode_t);
 bool tacplusd_online();
+
+#endif /* GLOBAL_H */
