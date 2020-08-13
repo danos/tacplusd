@@ -38,7 +38,7 @@
 
 /* DBus method signatures */
 #define GET_STATUS_ARGS ""
-#define GET_STATUS_RET  BUS_TYPE_ARRAY BUS_TYPE_STRING
+#define GET_STATUS_RET  BUS_TYPE_INT32 BUS_TYPE_ARRAY BUS_TYPE_STRING
 
 #define GET_ACCT_TASK_ID_ARGS ""
 #define GET_ACCT_TASK_ID_RET  BUS_TYPE_STRING
@@ -362,6 +362,9 @@ static void *consume_dbus_req_thread(void *arg __unused)
 static int fill_status_reply(struct sd_bus_message *m)
 {
 	int ret;
+
+	sd_bus_message_append(m, BUS_TYPE_INT32,
+						  tacplusd_remaining_offline_secs());
 
 	ret = sd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, BUS_TYPE_STRING);
 	if (ret < 0)
