@@ -26,7 +26,6 @@ tacplusd_LDADD = \
 	$(SYSTEMD_LIBS) \
 	$(GLIB_LIBS) \
 	-lpthread \
-	-lm \
 	-lrt
 
 sbin_SCRIPTS = exec-tacplusd

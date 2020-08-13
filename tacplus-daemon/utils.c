@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <syslog.h>
 #include <stdlib.h>
-#include <math.h>
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/socket.h>
