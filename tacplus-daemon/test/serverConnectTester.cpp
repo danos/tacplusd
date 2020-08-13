@@ -686,7 +686,8 @@ TEST(ServerConnection, resetHoldDown)
     CHECK(tacplus_server_is_held_down((const struct tacplus_options_server *)serv));
 
     tacplus_server_reset_hold_down((struct tacplus_options_server *)serv);
-    CHECK_TIMESPEC_VALS(serv->state.lastTrouble, -1, -1);
+    CHECK_TIMESPEC_VALS(serv->state.lastTrouble, 105, 20221);
+    CHECK_TIMESPEC_VALS(serv->state.lastHoldDownReset, 110, 0);
 
     CHECK(! tacplus_server_is_held_down((const struct tacplus_options_server *)serv));
 }
@@ -1039,17 +1040,24 @@ TEST(ServerConnection, copyServerStateAdded)
     CHECK_TIMESPEC_VALS(new_opts->server[2].state.lastTrouble, -1, -1);
     CHECK_TIMESPEC_VALS(new_opts->server[3].state.lastTrouble, -1, -1);
 
+    ut_inc_cur_mono_time(15, 0);
     tacplus_copy_server_state(opts, new_opts);
 
-    /* Hold down not was not previously configured - so last trouble should not be transferred */
-    CHECK_TIMESPEC_VALS(new_opts->server[0].state.lastTrouble, -1, -1);
-
+    CHECK_TIMESPEC_VALS(new_opts->server[0].state.lastTrouble, 10, 5);
     CHECK_TIMESPEC_VALS(new_opts->server[1].state.lastTrouble, 0, 2);
     CHECK_TIMESPEC_VALS(new_opts->server[2].state.lastTrouble, 767, 9867);
     CHECK_TIMESPEC_VALS(new_opts->server[3].state.lastTrouble, -1, -1);
     CHECK_TIMESPEC_VALS(opts->server[0].state.lastTrouble, 10, 5);
     CHECK_TIMESPEC_VALS(opts->server[1].state.lastTrouble, 0, 2);
     CHECK_TIMESPEC_VALS(opts->server[2].state.lastTrouble, 767, 9867);
+
+    /* Hold down not was not previously configured - so hold down should have been reset */
+    CHECK_TIMESPEC_VALS(new_opts->server[0].state.lastHoldDownReset, 15, 0);
+
+    /* But not on the other servers, which did have a previous hold down */
+    CHECK_TIMESPEC_VALS(new_opts->server[1].state.lastHoldDownReset, -1, -1);
+    CHECK_TIMESPEC_VALS(new_opts->server[2].state.lastHoldDownReset, -1, -1);
+    CHECK_TIMESPEC_VALS(new_opts->server[3].state.lastHoldDownReset, -1, -1);
 
     CHECK_EQUAL(new_opts->server[0].hold_down, 0);
     CHECK_EQUAL(new_opts->server[1].hold_down, 0);

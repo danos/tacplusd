@@ -43,6 +43,11 @@ tacplus_server_remaining_hold_down_at(const struct tacplus_options_server *serve
 	if (timespec_cmp(cur_time, &server->state.lastTrouble) < 0)
 		return false;
 
+	/* Check timer has not been reset since last trouble */
+	if (timespec_cmp(&server->state.lastTrouble,
+					 &server->state.lastHoldDownReset) <= 0)
+		return false;
+
 	expires = server->state.lastTrouble;
 	expires.tv_sec += server->state.activeHoldDown;
 
@@ -98,7 +103,7 @@ tacplus_server_activate_hold_down(struct tacplus_options_server *server)
 void
 tacplus_server_reset_hold_down(struct tacplus_options_server *server)
 {
-	SET_TIMESPEC_VALS(server->state.lastTrouble, -1, -1);
+	cur_mono_time(&server->state.lastHoldDownReset);
 }
 
 static
@@ -537,7 +542,8 @@ struct tacplus_options *tacplus_options_alloc(unsigned n)
 #ifndef HAVE_LIBTAC_EVENT
 		ret->server[i].fd = -1;
 #endif
-		tacplus_server_reset_hold_down(&ret->server[i]);
+		SET_TIMESPEC_VALS(ret->server[i].state.lastTrouble, -1, -1);
+		SET_TIMESPEC_VALS(ret->server[i].state.lastHoldDownReset, -1, -1);
 	}
 
 	return ret;

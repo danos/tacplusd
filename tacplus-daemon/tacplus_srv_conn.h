@@ -52,6 +52,7 @@ struct tacplus_options
 		struct tacplus_server_state {
 			struct timespec lastTrouble;
 			unsigned activeHoldDown;
+			struct timespec lastHoldDownReset;
 		} state;
 	} server[0];
 };
