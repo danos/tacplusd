@@ -2,7 +2,7 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 
 Files:     debian/*
 Copyright: 2016 Brocade Communications Systems, Inc.
-           2018-2019 AT&T Intellectual Property.
+           2018-2020 AT&T Intellectual Property.
 License: GPL-2.0
 
 Files:     tacplus-daemon/daemon.c
@@ -33,7 +33,7 @@ Files:     tacplus-daemon/daemon.c
            tacplus-daemon/utils.c
            tacplus-daemon/utils.h
 Copyright: 2015-2016 Brocade Communications Systems, Inc.
-           2018-2019 AT&T Intellectual Property.
+           2018-2020 AT&T Intellectual Property.
 License:   GPL-2.0
  This program is free software; you can redistribute it
  and/or modify it under the terms of the GNU General Public

@@ -24,10 +24,11 @@ static const char *s_general = "general";
 static const char *s_options = "options";
 
 static inline
-void g_syslog(int priority, const char *fmt, GError *e)
+void g_syslog(int priority, const char *fmt, GError **e)
 {
-	syslog(priority, fmt, e->message);
-	g_error_free(e);
+	syslog(priority, fmt, (*e)->message);
+	g_error_free(*e);
+	*e = NULL;
 }
 
 static inline
@@ -76,7 +77,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 	flags = G_KEY_FILE_NONE;
 
 	if (!g_key_file_load_from_file(keyfile, f_name, flags, &error)) {
-		g_syslog(LOG_ERR, "config file open: %s", error);
+		g_syslog(LOG_ERR, "config file open: %s", &error);
 		g_key_file_free(keyfile);
 		return;
 	}
@@ -93,7 +94,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 
 	gboolean broadcast = g_key_file_get_boolean(keyfile, s_general, "BroadcastAccounting", &error);
 	if (error) {
-		g_syslog(LOG_ERR, "parse BroadcastAccounting option: %s", error);
+		g_syslog(LOG_ERR, "parse BroadcastAccounting option: %s", &error);
 		goto cleanup2;
 	}
 
@@ -106,7 +107,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 
 	setupTimeout = g_key_file_get_integer(keyfile, s_general, "SetupTimeout", &error);
 	if (error) {
-		g_syslog(LOG_ERR, "parse SetupTimeout option: %s", error);
+		g_syslog(LOG_ERR, "parse SetupTimeout option: %s", &error);
 		goto cleanup2;
 	}
 	if (setupTimeout <= 0) {
@@ -117,11 +118,12 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 	dscp = g_key_file_get_integer(keyfile, s_general, "Dscp", &error);
 	if (error) {
 		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
-			g_syslog(LOG_ERR, "parse Dscp option: %s", error);
+			g_syslog(LOG_ERR, "parse Dscp option: %s", &error);
 			goto cleanup2;
 		}
 		dscp = IPTOS_CLASS_CS6;
 		g_error_free(error);
+		error = NULL;
 	} else if (dscp < 0 || dscp > 63) {
 		syslog(LOG_ERR, "Dscp value must be in the range <0-63>");
 		goto cleanup2;
@@ -148,7 +150,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 		/* start with tuple of address and port */
 		addr = g_key_file_get_string(keyfile, server, "Address", &error);
 		if (error) {
-			g_syslog(LOG_ERR, "parse server address: %s", error);
+			g_syslog(LOG_ERR, "parse server address: %s", &error);
 			ai = NULL;
 			valid = false;
 		} else {
@@ -163,14 +165,14 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 
 		port = g_key_file_get_integer(keyfile, server, "Port", &error);
 		if (error) {
-			g_syslog(LOG_ERR, "parse port: %s", error);
+			g_syslog(LOG_ERR, "parse port: %s", &error);
 			valid = false;
 		}
 
 		/* ... then required secret and timeout. */
 		gsecret = g_key_file_get_string(keyfile, server, "Secret", &error);
 		if (error) {
-			g_syslog(LOG_ERR, "parse secret: %s", error);
+			g_syslog(LOG_ERR, "parse secret: %s", &error);
 			valid = false;
 			secret = NULL;
 		} else {
@@ -187,13 +189,13 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 
 		timeout = g_key_file_get_integer(keyfile, server, "Timeout", &error);
 		if (error) {
-			g_syslog(LOG_ERR, "parse timeout: %s", error);
+			g_syslog(LOG_ERR, "parse timeout: %s", &error);
 			valid = false;
 		}
 
 		hold_down = g_key_file_get_integer(keyfile, server, "HoldDown", &error);
 		if (error) {
-			g_syslog(LOG_ERR, "parse HoldDown: %s", error);
+			g_syslog(LOG_ERR, "parse HoldDown: %s", &error);
 			valid = false;
 		} else if (hold_down < 0) {
 			syslog(LOG_ERR, "Invalid negative HoldDown %d", hold_down);
@@ -211,11 +213,11 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 		src_addr = g_key_file_get_string(keyfile, server, "SourceAddress", &error);
 		if (error) {
 			if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-				g_syslog(LOG_ERR, "parse source address: %s",
-					 error);
+				g_syslog(LOG_ERR, "parse source address: %s", &error);
 			else
 				g_error_free(error);
 
+			error = NULL;
 			sai = NULL;
 		} else {
 			err = getaddrinfo(src_addr, "", &hints, &sai);
@@ -227,15 +229,16 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 		}
 
 		/* Optional SourceInterface */
-		error = NULL;
 		gsrc_intf = g_key_file_get_string(keyfile, server, "SourceInterface", &error);
 		if (error) {
 			if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
-				g_syslog(LOG_ERR, "parse source interface: %s", error);
+				g_syslog(LOG_ERR, "parse source interface: %s", &error);
 				valid = false;
 			}
 			else
 				g_error_free(error);
+
+			error = NULL;
 			src_intf = NULL;
 		} else {
 			src_intf = strdup (gsrc_intf);
