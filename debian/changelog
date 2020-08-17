@@ -1,3 +1,24 @@
+tacplusd (1.24) unstable; urgency=medium
+
+  * Don't exit(1) if no servers are configured
+  * Implement get_account_task_id() DBus method
+  * parser.c: NULL GError pointer after use
+  * Store hold down interval value on activation
+  * utils: Add remaining_timer_interval()
+  * Add configurable offline timer period
+  * utils: Add timespec_nearest_sec()
+  * global: Add tacplusd_remaining_offline_secs()
+  * dbus_service: return offline interval in get_status
+  * global: Add CONN_CONTROL_INIT macro
+  * Record timestamp of hold-down timer resets
+  * dbus_service: Add reset_timers() method
+  * dbus_service.c: Drop offline signal fail log level
+  * debian/copyright: Fix Lintian warnings
+  * tacplus_srv_conn.h: Cleanup unused defines
+  * Don't link against libm
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Mon, 17 Aug 2020 08:49:08 +0100
+
 tacplusd (1.23) unstable; urgency=medium
 
   * Always attempt to get remote IP for transaction
