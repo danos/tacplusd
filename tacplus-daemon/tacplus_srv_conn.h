@@ -29,6 +29,7 @@ struct tac_session_extra {
 
 struct tacplus_options
 {
+	u_int8_t log_level;
 	unsigned n_servers, curr_server, next_server;
 	bool broadcast;
 	uint8_t dscp;

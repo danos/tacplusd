@@ -73,6 +73,9 @@ static int setup_service(const char *tacplus_cfg)
 		goto done;
 	}
 
+	/* Update log level */
+	setlogmask(LOG_UPTO(connControl->opts->log_level));
+
 	/* Set global DSCP marking in libtac library */
 	tac_set_dscp(connControl->opts->dscp);
 

@@ -66,7 +66,7 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 		.ai_flags = AI_NUMERICHOST,
 	};
 	struct connection conn[TACPLUS_MAX_SERVERS];
-	unsigned nservers, setupTimeout, offlineTimer;
+	unsigned nservers, setupTimeout, offlineTimer, logLevel;
 	int dscp;
 	unsigned i, j;
 
@@ -91,6 +91,21 @@ void read_config(const char *f_name, struct tacplus_options **opts)
 	/* any global options would be handled here from the
 	 * 'general' section
 	 */
+
+	logLevel = g_key_file_get_integer(keyfile, s_general, "LogLevel", &error);
+	if (error) {
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+			g_syslog(LOG_ERR, "Error parsing LogLevel: %s", &error);
+			goto cleanup2;
+		}
+		logLevel = LOG_NOTICE;
+		g_error_free(error);
+		error = NULL;
+	}
+	else if (logLevel > LOG_DEBUG) {
+		syslog(LOG_ERR, "Invalid LogLevel, %u greater than max %u.\n", logLevel, LOG_DEBUG);
+		goto cleanup2;
+	}
 
 	gboolean broadcast = g_key_file_get_boolean(keyfile, s_general, "BroadcastAccounting", &error);
 	if (error) {
@@ -307,6 +322,7 @@ cleanup2:
 	if (!nservers)
 		return;
 
+	(*opts)->log_level = logLevel;
 	(*opts)->next_server = INVALID_SERVER_ID;
 	(*opts)->curr_server = 0;
 	(*opts)->broadcast = broadcast;
