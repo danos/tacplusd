@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2019, AT&T Intellectual Property.
+	Copyright (c) 2018-2020, AT&T Intellectual Property.
 	Copyright (c) 2015 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -24,6 +24,7 @@ typedef struct tacplus_dbus_service * tacplus_dbus_service_t;
 /* prototypes */
 extern void dbus_service_init();
 extern void dbus_service_deinit();
+void dbus_service_set_min_task_id(uint32_t id);
 extern int dbus_service_start();
 extern void dbus_service_stop();
 extern void dbus_service_pause();

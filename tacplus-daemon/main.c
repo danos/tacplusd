@@ -111,13 +111,37 @@ static int reload_service(const char *tacplus_cfg)
 struct tacplusd_args {
 	const char *cfg;
 	const char *pid;
+	uint32_t	min_task_id;
+};
+
+/* non-ASCII means no short option */
+#define ARG_KEY_MIN_TASK_ID 128
+
+static struct argp_option options[] = {
+	{"min-task-id", ARG_KEY_MIN_TASK_ID, "ID", 0, "Minimum auto-generated task ID", 0 },
+	{0},
 };
 
 static error_t arg_parser_cb(int key, char *arg, struct argp_state *state)
 {
 	struct tacplusd_args *args = state->input;
+	int64_t id;
+	char *ep;
 
 	switch (key) {
+		case ARG_KEY_MIN_TASK_ID:
+			errno = 0;
+			id = strtol(arg, &ep, 10);
+			if (errno || *ep != '\0' || id < 0 || id > UINT32_MAX) {
+				argp_failure(state, -1, errno,
+							 "ID must be an integer in the range 0-%u",
+							 UINT32_MAX);
+				return EINVAL;
+			}
+
+			args->min_task_id = id;
+			break;
+
 		case ARGP_KEY_ARG:
 			switch (state->arg_num) {
 				case 0:
@@ -146,7 +170,7 @@ static error_t arg_parser_cb(int key, char *arg, struct argp_state *state)
 static error_t parse_args(int argc, char *argv[], struct tacplusd_args *args)
 {
 	struct argp arg_parser = {
-			options: NULL,
+			options: options,
 			parser: arg_parser_cb,
 			args_doc: "CONFIG_PATH [ PID_PATH ]"
 	};
@@ -197,6 +221,7 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&connControl->state.lock, NULL);
 
 	dbus_service_init();
+	dbus_service_set_min_task_id(args.min_task_id);
 
 	if (setup_service(args.cfg) != 0) {
 		ret = -1;

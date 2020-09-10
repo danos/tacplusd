@@ -77,6 +77,7 @@ struct tacplus_dbus_service {
 	pthread_t request_thread, reply_thread, dbus_thread;
 
 	uint64_t acct_task_id;
+	uint32_t min_acct_task_id;
 };
 
 static struct tacplus_dbus_service _service = { .stop = true, .process = false };
@@ -138,6 +139,12 @@ void dbus_service_deinit()
 	pthread_mutex_unlock(&service->bus_lock);
 
 	pthread_mutex_destroy(&service->bus_lock);
+}
+
+void dbus_service_set_min_task_id(uint32_t id)
+{
+	assert(service->stop);
+	service->min_acct_task_id = id;
 }
 
 static int
@@ -546,6 +553,13 @@ static int fill_account_transaction_from_bus_msg(struct account_send_param *p,
 	return var_fn(p, m);
 }
 
+static uint64_t get_next_task_id(tacplus_dbus_service_t service) {
+	if (service->acct_task_id == 0)
+		service->acct_task_id = service->min_acct_task_id;
+
+	return service->acct_task_id++;
+}
+
 static void fill_account_transaction_task_id(struct account_send_param *p) {
 	/*
 	 * Choose a new task ID if one was not provided
@@ -557,7 +571,7 @@ static void fill_account_transaction_task_id(struct account_send_param *p) {
 	 */
 	if (!p->task_id) {
 		char buf[TAC_PLUS_ATTRIB_MAX_LEN] = {0};
-		assert(snprintf(buf, sizeof(buf), "%lu", service->acct_task_id++) < (int) sizeof(buf));
+		assert(snprintf(buf, sizeof(buf), "%lu", get_next_task_id(service)) < (int) sizeof(buf));
 		p->task_id = strdup(buf);
 	} else {
 		p->task_id = strdup(p->task_id);
