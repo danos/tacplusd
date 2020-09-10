@@ -7,6 +7,7 @@
 	SPDX-License-Identifier: GPL-2.0-only
 */
 
+#include <argp.h>
 #include <pthread.h>
 
 #include "global.h"
@@ -107,21 +108,60 @@ static int reload_service(const char *tacplus_cfg)
 	return ret;
 }
 
+struct tacplusd_args {
+	const char *cfg;
+	const char *pid;
+};
+
+static error_t arg_parser_cb(int key, char *arg, struct argp_state *state)
+{
+	struct tacplusd_args *args = state->input;
+
+	switch (key) {
+		case ARGP_KEY_ARG:
+			switch (state->arg_num) {
+				case 0:
+					args->cfg = arg;
+					break;
+				case 1:
+					args->pid = arg;
+					break;
+				default:
+					argp_error(state, "Too many arguments");
+			}
+			break;
+
+		case ARGP_KEY_END:
+			if (state->arg_num < 1)
+				argp_error(state, "Missing required CONFIG_PATH argument");
+			break;
+
+		default:
+			return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static error_t parse_args(int argc, char *argv[], struct tacplusd_args *args)
+{
+	struct argp arg_parser = {
+			options: NULL,
+			parser: arg_parser_cb,
+			args_doc: "CONFIG_PATH [ PID_PATH ]"
+	};
+
+	memset(args, 0, sizeof *args);
+	return argp_parse(&arg_parser, argc, argv, 0, NULL, args);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
 	sigset_t set;
-	char *tacplus_cfg;
-	char *tacplus_pid;
+	struct tacplusd_args args;
 
-	if (argc == 2 || argc == 3) {
-		tacplus_cfg = argv[1];
-		tacplus_pid = argc == 3 ? argv[2] : NULL;
-	}
-	else {
-		fprintf(stderr, "Insufficient arguments to the daemon\n");
-		return -1;
-	}
+	parse_args(argc, argv, &args);
 
 	if (getenv("DEBUG"))
 		tac_debug_enable = 1;
@@ -129,15 +169,15 @@ int main(int argc, char *argv[])
 	if (!getenv("NODAEMON")) {
 		openlog("tacplusd", LOG_ODELAY, LOG_AUTH);
 
-		if (tacplus_pid)
-			daemonize(tacplus_pid);
+		if (args.pid)
+			daemonize(args.pid);
 	}
 	else
 		openlog("tacplusd", LOG_PERROR, LOG_AUTH);
 
 	/* from this point onwards, we're the child */
 	syslog(LOG_NOTICE, "Tacplusd daemonized successfully");
-	syslog(LOG_DEBUG, "Tacplusd started with %s\n", tacplus_cfg);
+	syslog(LOG_DEBUG, "Tacplusd started with %s\n", args.cfg);
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGQUIT);
@@ -158,7 +198,7 @@ int main(int argc, char *argv[])
 
 	dbus_service_init();
 
-	if (setup_service(tacplus_cfg) != 0) {
+	if (setup_service(args.cfg) != 0) {
 		ret = -1;
 		goto done;
 	}
@@ -174,7 +214,7 @@ int main(int argc, char *argv[])
 	signal_offline_state_change();
 
 	while (run) {
-		if (reload && (ret = reload_service(tacplus_cfg)) != 0)
+		if (reload && (ret = reload_service(args.cfg)) != 0)
 			goto done;
 
 		signal_wait(&set);
