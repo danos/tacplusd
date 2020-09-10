@@ -15,11 +15,6 @@
 #include "statistics.h"
 #include "tacplus_srv_conn.h"
 
-/*
- * TODO
- * add license to all source files
- */
-
 static int run = 1; /* Initially to enter while loop */
 static int reload = 0;
 
