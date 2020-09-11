@@ -275,6 +275,7 @@ get_tty_login_addr(const char *tty)
 {
 	struct utmpx tty_utmp = {0};
 	char buf[INET6_ADDRSTRLEN] = {0};
+	char host[sizeof(tty_utmp.ut_host) + 1] = {0};
 	char *zone_index;
 
 	static_assert(sizeof(buf) >= sizeof(struct in6_addr),
@@ -294,15 +295,19 @@ get_tty_login_addr(const char *tty)
 		return NULL;
 	}
 
+	/* ut_host may not be NUL terminated, so ensure we have a terminated copy */
+	memcpy(host, up->ut_host, sizeof(host) - 1);
+	host[sizeof(host) - 1] = '\0';
+
 	/*
 	 * Check for a zone index and terminate prior to the separator, since inet_pton()
 	 * won't handle it and would fail.
 	 */
-	if ((zone_index = strrchr(up->ut_host, '%')))
+	if ((zone_index = strrchr(host, '%')))
 		*zone_index = '\0';
 
-	if (inet_pton(AF_INET, up->ut_host, buf) != 1 &&
-		inet_pton(AF_INET6, up->ut_host, buf) != 1) {
+	if (inet_pton(AF_INET, host, buf) != 1 &&
+		inet_pton(AF_INET6, host, buf) != 1) {
 
 		/* ut_host is a hostname or not set - fallback to ut_addr_v6 */
 		int af = (up->ut_addr_v6[1] == 0 &&
@@ -320,7 +325,7 @@ get_tty_login_addr(const char *tty)
 	if (zone_index)
 		*zone_index = '%';
 
-	return strlen(up->ut_host) ? strdup(up->ut_host) : NULL;
+	return strlen(host) ? strdup(host) : NULL;
 }
 
 int

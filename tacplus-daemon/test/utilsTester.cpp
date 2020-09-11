@@ -415,3 +415,27 @@ TEST(Utils, getTtyLoginAddrIPv6ZoneIdx) {
     ut_set_getutxline_ret(&mock);
     STRCMP_EQUAL("1:1::1:1%ens1", get_tty_login_addr("tty0"));
 }
+
+TEST(Utils, getTtyLoginAddrMaxHostName) {
+    struct utmpx mock = INIT_MOCK_UTMPX;
+
+    static_assert(offsetof(struct utmpx, ut_exit.e_termination) ==
+                  offsetof(struct utmpx, ut_host) + sizeof(mock.ut_host),
+                  "struct utmpx layout breaks overflow test assumption");
+    mock.ut_exit.e_termination = htons('O' << 8 | 'F'); // overflow poison
+
+    /* We expect a NUL terminated string to be returned */
+    char exp[sizeof(mock.ut_host) + 1];
+    memset(exp, 'a', sizeof exp);
+    exp[sizeof(exp) - 1] = '\0';
+    CHECK_EQUAL(sizeof(mock.ut_host), strlen(exp));
+
+    /* But a max length string in ut_host is not NUL terminated */
+    memcpy(mock.ut_host, exp, sizeof mock.ut_host);
+    CHECK_EQUAL(mock.ut_host[sizeof(mock.ut_host)-1], 'a');
+
+    ut_set_getutxline_ret(&mock);
+    char *act = get_tty_login_addr("tty0");
+
+    STRCMP_EQUAL(exp, act);
+}
