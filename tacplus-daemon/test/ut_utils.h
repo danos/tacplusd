@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <utmpx.h>
 
 #include "utils.h"
 
@@ -115,6 +116,25 @@ __wrap_tac_connect_single(const struct addrinfo *server,
 	call->timeout = timeout;
 
 	return _tac_connect_fds[_tac_connect_call_count++];
+}
+
+struct utmpx *_getutxline_ret;
+
+struct utmpx *
+__wrap_getutxline(const struct utmpx *ut)
+{
+	assert(!_getutxline_ret ||
+		   strncmp(ut->ut_line,
+				   _getutxline_ret->ut_line,
+				   sizeof ut->ut_line) == 0);
+
+	return _getutxline_ret;
+}
+
+void
+ut_set_getutxline_ret(struct utmpx *ut)
+{
+	_getutxline_ret = ut;
 }
 
 #define CHECK_TIMESPEC_VALS(T,S,N) \
