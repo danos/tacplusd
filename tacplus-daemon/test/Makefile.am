@@ -21,6 +21,7 @@ check_PROGRAMS = queue_tester server_connect_tester utils_tester parser_tester \
 
 utils_tester_SOURCES = utilsTester.cpp ut_utils.c testMain.cpp ../utils.c
 utils_tester_LDADD = $(LDADD)
+utils_tester_LDFLAGS = -Wl,-wrap,getutxline
 
 parser_tester_SOURCES = parserTester.cpp testMain.cpp ../parser.c \
                         ../tacplus_srv_conn.c ../utils.c ../statistics.c \
