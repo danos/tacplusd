@@ -1,3 +1,10 @@
+tacplusd (1.23.1) unstable; urgency=medium
+
+  * utils: fallback to ut_host if ut_addr_v6 is not set
+  * utils: ut_host may not be NUL terminated
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Tue, 22 Sep 2020 09:46:52 +0100
+
 tacplusd (1.23) unstable; urgency=medium
 
   * Always attempt to get remote IP for transaction
