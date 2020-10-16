@@ -1,8 +1,12 @@
-tacplusd (1.25) UNRELEASED; urgency=medium
+tacplusd (1.25) unstable; urgency=medium
 
-  * 
+  * main: Use argp for argument handling
+  * main: Add --min-task-id option
+  * main: remove old TODO
+  * utils: fallback to ut_host if ut_addr_v6 is not set
+  * utils: ut_host may not be NUL terminated
 
- -- Duncan Eastoe <duncan.eastoe@att.com>  Tue, 08 Sep 2020 18:21:37 +0100
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Fri, 16 Oct 2020 17:02:48 +0100
 
 tacplusd (1.24) unstable; urgency=medium
 
