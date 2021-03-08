@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2020 AT&T Intellectual Property.
+	Copyright (c) 2018-2021 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -14,6 +14,7 @@
 #include <tacplus.h>
 
 #include "global.h"
+#include "queue.h"
 #include "statistics.h"
 #include "tacplus_srv_conn.h"
 #include "transaction.h"
@@ -42,7 +43,7 @@ const char *transaction_type_str(transaction_type_t type)
 	return "unknown";
 }
 
-struct transaction *transaction_new(transaction_type_t type)
+struct transaction *transaction_new(transaction_type_t type, int priority)
 {
 	struct transaction *t;
 
@@ -51,6 +52,7 @@ struct transaction *transaction_new(transaction_type_t type)
 		return NULL;
 
 	t->type = type;
+	t->prio = priority;
 	return t;
 }
 

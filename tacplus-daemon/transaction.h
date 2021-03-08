@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2020 AT&T Intellectual Property.
+	Copyright (c) 2018-2021 AT&T Intellectual Property.
 
 	SPDX-License-Identifier: GPL-2.0-only
 */
@@ -70,6 +70,7 @@ const char *transaction_type_str(transaction_type_t);
 
 struct transaction {
 	transaction_type_t type;
+	int prio;
 
 	union {
 		struct authen_send_param authen;
@@ -87,7 +88,7 @@ struct transaction {
 	void *user;
 };
 
-struct transaction *transaction_new(transaction_type_t);
+struct transaction *transaction_new(transaction_type_t, int priority);
 void transaction_free(struct transaction **);
 
 struct transaction_attrib {

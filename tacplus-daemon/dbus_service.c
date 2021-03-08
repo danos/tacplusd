@@ -1,7 +1,7 @@
 /*
 	TACACS+ D-Bus Daemon code
 
-	Copyright (c) 2018-2020 AT&T Intellectual Property.
+	Copyright (c) 2018-2021 AT&T Intellectual Property.
 	Copyright (c) 2015-2016 Brocade Communications Systems, Inc.
 
 	SPDX-License-Identifier: GPL-2.0-only
@@ -116,6 +116,16 @@ static void transaction_queue_free_element(void *e)
 	}
 
 	transaction_free(&t);
+}
+
+static void transaction_query_enqueue(struct transaction *t)
+{
+	enqueue(service->tacacs_query_q, t, t->prio);
+}
+
+static void transaction_response_enqueue(struct transaction *t)
+{
+	enqueue(service->tacacs_response_q, t, t->prio);
 }
 
 void dbus_service_init()
@@ -362,7 +372,7 @@ static void *consume_dbus_req_thread(void *arg __unused)
 		syslog(LOG_DEBUG, "Completed %s transaction, queueing response",
 						  transaction_type_str(t->type));
 
-		enqueue(service->tacacs_response_q, t);
+		transaction_response_enqueue(t);
 	}
 
 	syslog(LOG_DEBUG, "TACACS+ request_thread: exiting");
@@ -492,7 +502,7 @@ static int queue_transaction_for_bus_message(struct transaction *t,
 	t->user = m;
 	sd_bus_message_ref(m);
 
-	enqueue(service->tacacs_query_q, t);
+	transaction_query_enqueue(t);
 
 	syslog(LOG_DEBUG, "Queued %s transaction request",
 					  transaction_type_str(t->type));
@@ -628,7 +638,7 @@ static void fill_account_transaction_rem_addr(struct account_send_param *p) {
 	}
 }
 
-#define ACCOUNT_SEND_VARIANT(N, V)											\
+#define ACCOUNT_SEND_VARIANT(N, P, V)											\
 static int N(sd_bus_message *m,												\
 			 __unused void *userdata,										\
 			 __unused sd_bus_error *error)									\
@@ -638,7 +648,7 @@ static int N(sd_bus_message *m,												\
 																			\
 	syslog(LOG_DEBUG, #N "() call");										\
 																			\
-	t = transaction_new(TRANSACTION_ACCOUNT);								\
+	t = transaction_new(TRANSACTION_ACCOUNT, P);				\
 	if (!t)																	\
 		return -ENOMEM;														\
 																			\
@@ -655,7 +665,7 @@ static int N(sd_bus_message *m,												\
 	return queue_transaction_for_bus_message(t, m);							\
 }
 
-ACCOUNT_SEND_VARIANT(account_send, NULL);
+ACCOUNT_SEND_VARIANT(account_send, MAX_PRIORITY, NULL);
 
 static int cmd_account_fill_handler(struct account_send_param *p,
 									sd_bus_message *m)
@@ -663,7 +673,7 @@ static int cmd_account_fill_handler(struct account_send_param *p,
 	return sd_bus_message_read_strv(m, &(p->command));
 }
 
-ACCOUNT_SEND_VARIANT(cmd_account_send, cmd_account_fill_handler);
+ACCOUNT_SEND_VARIANT(cmd_account_send, MIN_PRIORITY, cmd_account_fill_handler);
 
 static int fill_authen_transaction_from_bus_msg(struct authen_send_param *p,
 												sd_bus_message *m)
@@ -682,7 +692,7 @@ static int authen_send(sd_bus_message *m,
 
 	syslog(LOG_DEBUG, "authen_send() call");
 
-	t = transaction_new(TRANSACTION_AUTHEN);
+	t = transaction_new(TRANSACTION_AUTHEN, MAX_PRIORITY);
 	if (!t)
 		return -ENOMEM;
 
@@ -738,7 +748,7 @@ static int fill_author_transaction_from_bus_msg(struct author_send_param *p,
 	return var_fn(p, m);
 }
 
-#define AUTHOR_SEND_VARIANT(N, V)											\
+#define AUTHOR_SEND_VARIANT(N, P, V)											\
 static int N(sd_bus_message *m,												\
 			 __unused void *userdata,										\
 			 __unused sd_bus_error *error)									\
@@ -748,7 +758,7 @@ static int N(sd_bus_message *m,												\
 																			\
 	syslog(LOG_DEBUG, #N "() call");										\
 																			\
-	t = transaction_new(TRANSACTION_AUTHOR);								\
+	t = transaction_new(TRANSACTION_AUTHOR, P);								\
 	if (!t)																	\
 		return -ENOMEM;														\
 																			\
@@ -762,7 +772,7 @@ static int N(sd_bus_message *m,												\
 	return queue_transaction_for_bus_message(t, m);							\
 }
 
-AUTHOR_SEND_VARIANT(author_send, NULL);
+AUTHOR_SEND_VARIANT(author_send, MAX_PRIORITY, NULL);
 
 static int cmd_author_fill_handler(struct author_send_param *p,
 								   sd_bus_message *m)
@@ -770,7 +780,7 @@ static int cmd_author_fill_handler(struct author_send_param *p,
 	return sd_bus_message_read_strv(m, &(p->cmd));
 }
 
-AUTHOR_SEND_VARIANT(cmd_author_send, cmd_author_fill_handler);
+AUTHOR_SEND_VARIANT(cmd_author_send, MAX_PRIORITY, cmd_author_fill_handler);
 
 int signal_offline_state_change() {
 	if (service->stop) {
@@ -796,7 +806,7 @@ static int can_connect(sd_bus_message *m,
 
 	syslog(LOG_DEBUG, "can_connect() call");
 
-	t = transaction_new(TRANSACTION_CONN_CHECK);
+	t = transaction_new(TRANSACTION_CONN_CHECK, MAX_PRIORITY);
 	if (!t)
 		return -ENOMEM;
 
@@ -880,8 +890,8 @@ static void force_wake_queue_threads(tacplus_dbus_service_t service)
 
 	/* Wake up queue threads - transaction type MUST be TRANSACTION_INVALID */
 
-	enqueue(service->tacacs_query_q, transaction_new(TRANSACTION_INVALID));
-	enqueue(service->tacacs_response_q, transaction_new(TRANSACTION_INVALID));
+	transaction_query_enqueue(transaction_new(TRANSACTION_INVALID, MAX_PRIORITY));
+	transaction_response_enqueue(transaction_new(TRANSACTION_INVALID, MAX_PRIORITY));
 }
 
 static void start_processing(tacplus_dbus_service_t service)
