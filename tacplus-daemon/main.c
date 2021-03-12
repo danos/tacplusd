@@ -18,7 +18,7 @@
 static int run = 1; /* Initially to enter while loop */
 static int reload = 0;
 
-static ConnectionControl _connControl = CONN_CONTROL_INIT;
+static ConnectionControl _connControl;
 ConnectionControl *connControl = &_connControl;
 
 static void signal_wait(sigset_t *set)
@@ -179,6 +179,8 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	sigset_t set;
 	struct tacplusd_args args;
+
+	conn_control_init(connControl);
 
 	parse_args(argc, argv, &args);
 

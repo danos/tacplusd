@@ -7,9 +7,15 @@
 #include "CppUTest/TestHarness.h"
 extern "C" {
     #include <arpa/inet.h>
+    #include <string.h>
     #include "utils.h"
 }
 #include "ut_utils.h"
+
+static void init_mock_utmpx(struct utmpx *x) {
+    memset(x, 0, sizeof(struct utmpx));
+    strcpy(x->ut_line, "tty0");
+}
 
 TEST_GROUP(Utils) {};
 
@@ -344,7 +350,6 @@ TEST(Utils, timespecNearestSec)
  * get_tty_login_addr() tests
  */
 
-#define INIT_MOCK_UTMPX { .ut_line = { 't', 't', 'y', '0', '\0' }, }
 
 TEST(Utils, getTtyLoginAddrNoMatch)
 {
@@ -353,20 +358,23 @@ TEST(Utils, getTtyLoginAddrNoMatch)
 }
 
 TEST(Utils, getTtyLoginAddrNoHostNoAddr) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     ut_set_getutxline_ret(&mock);
     POINTERS_EQUAL(NULL, get_tty_login_addr("tty0"));
 }
 
 TEST(Utils, getTtyLoginAddrHostName) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "foobar");
     ut_set_getutxline_ret(&mock);
     STRCMP_EQUAL("foobar", get_tty_login_addr("tty0"));
 }
 
 TEST(Utils, getTtyLoginAddrHostNameIpv4) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "foobar");
     inet_pton(AF_INET, "1.1.1.1", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -374,7 +382,8 @@ TEST(Utils, getTtyLoginAddrHostNameIpv4) {
 }
 
 TEST(Utils, getTtyLoginAddrHostNameIpv6) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "foobar");
     inet_pton(AF_INET6, "1:1::1:1", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -387,7 +396,8 @@ TEST(Utils, getTtyLoginAddrHostNameIpv6) {
  */
 
 TEST(Utils, getTtyLoginAddrHostIPv4) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "1.1.1.1");
     inet_pton(AF_INET, "2.2.2.2", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -395,7 +405,8 @@ TEST(Utils, getTtyLoginAddrHostIPv4) {
 }
 
 TEST(Utils, getTtyLoginAddrHostIPv6) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "1:1::1:1");
     inet_pton(AF_INET6, "2:2::2:2", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -403,21 +414,24 @@ TEST(Utils, getTtyLoginAddrHostIPv6) {
 }
 
 TEST(Utils, getTtyLoginAddrIPv4) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     inet_pton(AF_INET, "1.1.1.1", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
     STRCMP_EQUAL("1.1.1.1", get_tty_login_addr("tty0"));
 }
 
 TEST(Utils, getTtyLoginAddrIPv6) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     inet_pton(AF_INET6, "1:1::1:1", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
     STRCMP_EQUAL("1:1::1:1", get_tty_login_addr("tty0"));
 }
 
 TEST(Utils, getTtyLoginAddrIPv4ZoneIdx) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "1.1.1.1%ens1");
     inet_pton(AF_INET, "2.2.2.2", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -425,7 +439,8 @@ TEST(Utils, getTtyLoginAddrIPv4ZoneIdx) {
 }
 
 TEST(Utils, getTtyLoginAddrIPv6ZoneIdx) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
     strcpy(mock.ut_host, "1:1::1:1%ens1");
     inet_pton(AF_INET6, "2:2::2:2", &mock.ut_addr_v6);
     ut_set_getutxline_ret(&mock);
@@ -433,7 +448,8 @@ TEST(Utils, getTtyLoginAddrIPv6ZoneIdx) {
 }
 
 TEST(Utils, getTtyLoginAddrMaxHostName) {
-    struct utmpx mock = INIT_MOCK_UTMPX;
+    struct utmpx mock;
+    init_mock_utmpx(&mock);
 
     static_assert(offsetof(struct utmpx, ut_exit.e_termination) ==
                   offsetof(struct utmpx, ut_host) + sizeof(mock.ut_host),

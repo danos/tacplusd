@@ -44,10 +44,8 @@ typedef struct {
 
 extern ConnectionControl *connControl;
 
-#define CONN_CONTROL_INIT {       \
-	.state = {                    \
-		.offline = false,         \
-	}                             \
+inline void conn_control_init(ConnectionControl *c) {
+	c->state.offline = false;
 }
 
 bool tacplusd_go_online();

@@ -8,10 +8,11 @@
 #include "CppUTest/CommandLineTestRunner.h"
 #include "global.h"
 
-static ConnectionControl _connControl = CONN_CONTROL_INIT;
+static ConnectionControl _connControl;
 ConnectionControl *connControl = &_connControl;
 
 int main(int ac, char** av)
 {
+  conn_control_init(connControl);
   return CommandLineTestRunner::RunAllTests(ac, av);
 }
