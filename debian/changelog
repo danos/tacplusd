@@ -1,3 +1,10 @@
+tacplusd (1.26) unstable; urgency=medium
+
+  [ Nachiketa Prachanda ]
+  * queue: implement priority queue
+
+ -- Daniel Gollub <dgollub@att.com>  Fri, 12 Mar 2021 13:59:41 +0100
+
 tacplusd (1.25) unstable; urgency=medium
 
   * main: Use argp for argument handling
