@@ -71,7 +71,7 @@ TEST(Queueing, EnqueueSingle)
         CHECK(q->front == q->rear[prio]);
 
         empty = is_queue_empty(q);
-        LONGS_EQUAL(0, empty)
+        LONGS_EQUAL(0, empty);
 
         reset();
     }
@@ -115,7 +115,7 @@ TEST(Queueing, DequeueNonEmpty)
         POINTERS_EQUAL(pair, pair_consumed);
 
         empty = is_queue_empty(q);
-        LONGS_EQUAL(1, empty)
+        LONGS_EQUAL(1, empty);
 
         free(pair);
         reset();

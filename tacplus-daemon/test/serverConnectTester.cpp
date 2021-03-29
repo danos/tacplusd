@@ -314,7 +314,7 @@ TEST(ServerConnection, connectMultiServerNoHoldDown)
     CHECK_TRUE(tacplus_connect());
     CHECK_TRUE(tacplusd_online());
     CHECK_EQUAL(-1, opts->server[0].fd);
-    CHECK_EQUAL(2, opts->server[1].fd)
+    CHECK_EQUAL(2, opts->server[1].fd);
     CHECK_EQUAL(1, opts->curr_server);
     CHECK_EQUAL(0, opts->next_server);
 
@@ -403,7 +403,7 @@ TEST(ServerConnection, connectMultiServerHoldDown)
     CHECK_TRUE(tacplus_connect());
     CHECK_TRUE(tacplusd_online());
     CHECK_EQUAL(-1, opts->server[0].fd);
-    CHECK_EQUAL(2, opts->server[1].fd)
+    CHECK_EQUAL(2, opts->server[1].fd);
     CHECK_EQUAL(1, opts->curr_server);
     CHECK_EQUAL(0, opts->next_server);
 
@@ -528,7 +528,7 @@ TEST(ServerConnection, connectMultiServerDiffHoldDown)
     CHECK_TRUE(tacplus_connect());
     CHECK_TRUE(tacplusd_online());
     CHECK_EQUAL(-1, opts->server[0].fd);
-    CHECK_EQUAL(2, opts->server[1].fd)
+    CHECK_EQUAL(2, opts->server[1].fd);
     CHECK_EQUAL(1, opts->curr_server);
     CHECK_EQUAL(0, opts->next_server);
 
