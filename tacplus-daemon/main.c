@@ -58,7 +58,7 @@ static int setup_service(const char *tacplus_cfg)
 
 #ifndef HAVE_LIBTAC_EVENT
 	/* libtac by default uses PAP auth method. tac_login is a global/extern variable of libtac */
-	strncpy(tac_login, "login", 5);
+	strncpy(tac_login, "login", 6);
 #endif
 
 	connControl->opts = tacplus_parse_reload_options(tacplus_cfg,
