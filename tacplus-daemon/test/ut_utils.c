@@ -15,3 +15,5 @@ int _tac_connect_call_count = 0;
 struct timespec _cur_time = { 0, 0 };
 
 struct timespec _offline_until = { 0, 0 };
+
+struct utmpx *_getutxline_ret;

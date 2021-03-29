@@ -119,7 +119,7 @@ __wrap_tac_connect_single(const struct addrinfo *server,
 	return _tac_connect_fds[_tac_connect_call_count++];
 }
 
-struct utmpx *_getutxline_ret;
+extern struct utmpx *_getutxline_ret;
 
 struct utmpx *
 __wrap_getutxline(const struct utmpx *ut)
