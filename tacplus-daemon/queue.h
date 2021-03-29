@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-enum queue_priority {
+typedef enum queue_priority {
 	MIN_PRIORITY = 0,
 	MAX_PRIORITY = 1,
 	NR_PRIORITY = MAX_PRIORITY + 1,
