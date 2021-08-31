@@ -1,3 +1,13 @@
+tacplusd (1.28) unstable; urgency=medium
+
+  [ Nicholas Brown ]
+  * add missing semi-colon reported by gcc10
+  * make _getutxline_ret extern
+  * Make queue_priority_t a typedef
+  * copy null terminator of tac_login
+
+ -- Daniel Gollub <dgollub@att.com>  Tue, 31 Aug 2021 15:17:17 +0200
+
 tacplusd (1.27) unstable; urgency=medium
 
   * global: enable build with GCC < 8 versions
